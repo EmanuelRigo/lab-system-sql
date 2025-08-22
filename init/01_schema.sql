@@ -1,12 +1,9 @@
--- Crear base de datos
 CREATE DATABASE IF NOT EXISTS lab_db_sql;
 USE lab_db_sql;
 
--- =========================
 -- 1. Tabla LabStaff
--- =========================
 CREATE TABLE LabStaff (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    _id INT AUTO_INCREMENT PRIMARY KEY,
     firstname VARCHAR(100) NOT NULL,
     lastname VARCHAR(100) NOT NULL,
     username VARCHAR(100) NOT NULL UNIQUE,
@@ -19,12 +16,11 @@ CREATE TABLE LabStaff (
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- =========================
 -- 2. Tabla Patient
--- =========================
 CREATE TABLE Patient (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    _id INT AUTO_INCREMENT PRIMARY KEY,
     firstname VARCHAR(100) NOT NULL,
+    secondname VARCHAR(100),
     lastname VARCHAR(100) NOT NULL,
     birthDate DATE NOT NULL,
     email VARCHAR(150) UNIQUE,
@@ -35,11 +31,9 @@ CREATE TABLE Patient (
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- =========================
 -- 3. Tabla MedicalStudy
--- =========================
 CREATE TABLE MedicalStudy (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    _id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
     description TEXT,
@@ -48,73 +42,63 @@ CREATE TABLE MedicalStudy (
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- =========================
 -- 4. Tabla Result
--- =========================
 CREATE TABLE Result (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    biochemistID INT NOT NULL,
+    _id INT AUTO_INCREMENT PRIMARY KEY,
+    biochemist_id INT NOT NULL,
     description TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (biochemistID) REFERENCES LabStaff(id)
+    FOREIGN KEY (biochemist_id) REFERENCES LabStaff(_id)
 );
 
--- =========================
--- 5. Tabla DoctorAppointment (sin FK a Talon aún)
--- =========================
+-- 5. Tabla DoctorAppointment
 CREATE TABLE DoctorAppointment (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    _id INT AUTO_INCREMENT PRIMARY KEY,
     isPaid BOOLEAN DEFAULT FALSE,
-    talonID INT, -- FK se agrega luego
-    resultID INT,
-    patientID INT NOT NULL,
-    medicalStudyID INT NOT NULL,
+    talon_id INT,
+    result_id INT,
+    patient_id INT NOT NULL,
+    medicalStudy_id INT NOT NULL,
     date DATETIME NOT NULL,
-    ReceptionistID INT,
+    receptionist_id INT,
     reason TEXT,
     status VARCHAR(50),
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (resultID) REFERENCES Result(id),
-    FOREIGN KEY (patientID) REFERENCES Patient(id),
-    FOREIGN KEY (medicalStudyID) REFERENCES MedicalStudy(id),
-    FOREIGN KEY (ReceptionistID) REFERENCES LabStaff(id)
+    FOREIGN KEY (result_id) REFERENCES Result(_id),
+    FOREIGN KEY (patient_id) REFERENCES Patient(_id),
+    FOREIGN KEY (medicalStudy_id) REFERENCES MedicalStudy(_id),
+    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
 );
 
--- =========================
--- 6. Tabla Talon (sin FK a DoctorAppointment aún)
--- =========================
+-- 6. Tabla Talon
 CREATE TABLE Talon (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    _id INT AUTO_INCREMENT PRIMARY KEY,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    DAppointmentID INT, -- FK se agrega luego
-    ReceptionistID INT NOT NULL,
+    doctorAppointment_id INT,
+    receptionist_id INT NOT NULL,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (ReceptionistID) REFERENCES LabStaff(id)
+    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
 );
 
--- =========================
 -- 7. Tabla Payment
--- =========================
 CREATE TABLE Payment (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    TalonID INT NOT NULL,
-    ReceptionistID INT NOT NULL,
+    _id INT AUTO_INCREMENT PRIMARY KEY,
+    talon_id INT NOT NULL,
+    receptionist_id INT NOT NULL,
     method VARCHAR(50) NOT NULL,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (TalonID) REFERENCES Talon(id),
-    FOREIGN KEY (ReceptionistID) REFERENCES LabStaff(id)
+    FOREIGN KEY (talon_id) REFERENCES Talon(_id),
+    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
 );
 
--- =========================
--- 8. Añadir las FKs circulares
--- =========================
+-- 8. FKs circulares
 ALTER TABLE DoctorAppointment
 ADD CONSTRAINT fk_doctorappointment_talon
-FOREIGN KEY (talonID) REFERENCES Talon(id);
+FOREIGN KEY (talon_id) REFERENCES Talon(_id);
 
 ALTER TABLE Talon
 ADD CONSTRAINT fk_talon_doctorappointment
-FOREIGN KEY (DAppointmentID) REFERENCES DoctorAppointment(id);
+FOREIGN KEY (doctorAppointment_id) REFERENCES DoctorAppointment(_id);
