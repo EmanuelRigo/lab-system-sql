@@ -3,7 +3,7 @@ USE lab_db_sql;
 
 -- 1. Tabla LabStaff
 CREATE TABLE LabStaff (
-    _id INT AUTO_INCREMENT PRIMARY KEY,
+    _id VARCHAR(24) PRIMARY KEY,
     firstname VARCHAR(100) NOT NULL,
     lastname VARCHAR(100) NOT NULL,
     username VARCHAR(100) NOT NULL UNIQUE,
@@ -18,7 +18,7 @@ CREATE TABLE LabStaff (
 
 -- 2. Tabla Patient
 CREATE TABLE Patient (
-    _id INT AUTO_INCREMENT PRIMARY KEY,
+    _id VARCHAR(24) PRIMARY KEY,
     firstname VARCHAR(100) NOT NULL,
     secondname VARCHAR(100),
     lastname VARCHAR(100) NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE Patient (
 
 -- 3. Tabla MedicalStudy
 CREATE TABLE MedicalStudy (
-    _id INT AUTO_INCREMENT PRIMARY KEY,
+    _id VARCHAR(24) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
     description TEXT,
@@ -44,8 +44,8 @@ CREATE TABLE MedicalStudy (
 
 -- 4. Tabla Result
 CREATE TABLE Result (
-    _id INT AUTO_INCREMENT PRIMARY KEY,
-    biochemist_id INT NOT NULL,
+    _id VARCHAR(24) PRIMARY KEY,
+    biochemist_id VARCHAR(24) NOT NULL,
     description TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -54,14 +54,14 @@ CREATE TABLE Result (
 
 -- 5. Tabla DoctorAppointment
 CREATE TABLE DoctorAppointment (
-    _id INT AUTO_INCREMENT PRIMARY KEY,
+    _id VARCHAR(24) PRIMARY KEY,
     isPaid BOOLEAN DEFAULT FALSE,
-    talon_id INT,
-    result_id INT,
-    patient_id INT NOT NULL,
-    medicalStudy_id INT NOT NULL,
+    talon_id VARCHAR(24),
+    result_id VARCHAR(24),
+    patient_id VARCHAR(24) NOT NULL,
+    medicalStudy_id VARCHAR(24) NOT NULL,
     date DATETIME NOT NULL,
-    receptionist_id INT,
+    receptionist_id VARCHAR(24),
     reason TEXT,
     status VARCHAR(50),
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -74,19 +74,19 @@ CREATE TABLE DoctorAppointment (
 
 -- 6. Tabla Talon
 CREATE TABLE Talon (
-    _id INT AUTO_INCREMENT PRIMARY KEY,
+    _id VARCHAR(24) PRIMARY KEY,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    doctorAppointment_id INT,
-    receptionist_id INT NOT NULL,
+    doctorAppointment_id VARCHAR(24),
+    receptionist_id VARCHAR(24) NOT NULL,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
 );
 
 -- 7. Tabla Payment
 CREATE TABLE Payment (
-    _id INT AUTO_INCREMENT PRIMARY KEY,
-    talon_id INT NOT NULL,
-    receptionist_id INT NOT NULL,
+    _id VARCHAR(24) PRIMARY KEY,
+    talon_id VARCHAR(24) NOT NULL,
+    receptionist_id VARCHAR(24) NOT NULL,
     method VARCHAR(50) NOT NULL,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -96,9 +96,9 @@ CREATE TABLE Payment (
 
 -- 8. FKs circulares
 ALTER TABLE DoctorAppointment
-ADD CONSTRAINT fk_doctorappointment_talon
-FOREIGN KEY (talon_id) REFERENCES Talon(_id);
+    ADD CONSTRAINT fk_doctorappointment_talon
+    FOREIGN KEY (talon_id) REFERENCES Talon(_id);
 
 ALTER TABLE Talon
-ADD CONSTRAINT fk_talon_doctorappointment
-FOREIGN KEY (doctorAppointment_id) REFERENCES DoctorAppointment(_id);
+    ADD CONSTRAINT fk_talon_doctorappointment
+    FOREIGN KEY (doctorAppointment_id) REFERENCES DoctorAppointment(_id);
