@@ -5,10 +5,11 @@ USE lab_db_sql;
 CREATE TABLE LabStaff (
     _id VARCHAR(24) PRIMARY KEY,
     firstname VARCHAR(100) NOT NULL,
+    secondname VARCHAR(100),
     lastname VARCHAR(100) NOT NULL,
     username VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('Admin', 'Receptionist', 'Biochemist', 'LabTechnician') NOT NULL,
+    role ENUM('role_admin', 'role_receptionist', 'role_biochemist', 'role_labTechnician') NOT NULL,
     email VARCHAR(150) UNIQUE,
     phone VARCHAR(20),
     isOnline BOOLEAN DEFAULT FALSE,
