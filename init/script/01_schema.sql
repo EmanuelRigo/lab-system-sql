@@ -56,7 +56,7 @@ CREATE TABLE Result (
 -- 5. Tabla DoctorAppointment
 CREATE TABLE DoctorAppointment (
     _id VARCHAR(24) PRIMARY KEY,
-    isPaid BOOLEAN DEFAULT FALSE,
+    isPaid BOOLEAN DEFAULT FALSE NOT NULL,
     talon_id VARCHAR(24),
     result_id VARCHAR(24),
     patient_id VARCHAR(24) NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE DoctorAppointment (
     date DATETIME NOT NULL,
     receptionist_id VARCHAR(24),
     reason TEXT,
-    status VARCHAR(50),
+    status ENUM('status_scheduled', 'status_completed', 'status_cancelled') DEFAULT 'status_pending',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (result_id) REFERENCES Result(_id),
