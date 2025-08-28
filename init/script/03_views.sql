@@ -36,7 +36,7 @@ ORDER BY da.date DESC;
 CREATE OR REPLACE VIEW v_results_full AS
 SELECT
   r.id AS result_id,
-  r.createdAt,
+  r.created_at,
   r.description,
   ls.id AS biochemist_id,
   CONCAT(ls.firstname,' ',ls.lastname) AS biochemist_name
