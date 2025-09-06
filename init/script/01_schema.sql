@@ -23,8 +23,8 @@ CREATE TABLE Patient (
     firstname VARCHAR(100) NOT NULL,
     secondname VARCHAR(100),
     lastname VARCHAR(100) NOT NULL,
-    birthDate DATE NOT NULL,
-    dni INT UNIQUE,
+    birth_date DATE NOT NULL,
+    dni INT UNIQUE NOT NULL,
     email VARCHAR(150),
     phone VARCHAR(20),
     address VARCHAR(255) NOT NULL,
@@ -108,4 +108,8 @@ CREATE TABLE Payment (
     FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id),
     FOREIGN KEY (patient_id) REFERENCES Patient(_id)
 );
+
+ALTER TABLE Patient
+CHANGE COLUMN birthDate birth_date DATE;
+
 
