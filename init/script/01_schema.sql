@@ -24,7 +24,7 @@ CREATE TABLE Patient (
     secondname VARCHAR(100),
     lastname VARCHAR(100) NOT NULL,
     birth_date DATE NOT NULL,
-    dni INT UNIQUE NOT NULL,
+    dni VARCHAR(20) UNIQUE NOT NULL,
     email VARCHAR(150),
     phone VARCHAR(20),
     address VARCHAR(255) NOT NULL,
@@ -57,7 +57,19 @@ CREATE TABLE Result (
     FOREIGN KEY (labtechnician_id) REFERENCES LabStaff(_id)
 );
 
--- 5. Tabla DoctorAppointment
+-- 5. Tabla Talon (se crea antes de DoctorAppointment y Payment)
+CREATE TABLE Talon (
+    _id VARCHAR(24) PRIMARY KEY,
+    receptionist_id VARCHAR(24) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    is_paid BOOLEAN DEFAULT FALSE NOT NULL,
+    payment_id VARCHAR(24),
+    total_amount DECIMAL(10,2) DEFAULT 0.00,
+    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
+);
+
+-- 6. Tabla DoctorAppointment
 CREATE TABLE DoctorAppointment (
     _id VARCHAR(24) PRIMARY KEY,
     is_paid BOOLEAN DEFAULT FALSE NOT NULL,
@@ -65,7 +77,8 @@ CREATE TABLE DoctorAppointment (
     patient_id VARCHAR(24) NOT NULL,
     medical_study_id VARCHAR(24) NOT NULL,
     date DATETIME NOT NULL,
-    receptionist_id VARCHAR(24),
+    receptionist_id VARCHAR(24) NOT NULL,
+    talon_id VARCHAR(24),
     reason TEXT,
     status ENUM('scheduled', 'completed', 'cancelled') DEFAULT 'scheduled',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -73,28 +86,11 @@ CREATE TABLE DoctorAppointment (
     FOREIGN KEY (result_id) REFERENCES Result(_id),
     FOREIGN KEY (patient_id) REFERENCES Patient(_id),
     FOREIGN KEY (medical_study_id) REFERENCES MedicalStudy(_id),
-    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
+    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id),
+    FOREIGN KEY (talon_id) REFERENCES Talon(_id)
 );
 
--- 6. Tabla Talon (sin doctor_appointment_id)
-CREATE TABLE Talon (
-    _id VARCHAR(24) PRIMARY KEY,
-    receptionist_id VARCHAR(24) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
-);
-
--- 7. Tabla intermedia TalonDoctorAppointment
-CREATE TABLE TalonDoctorAppointment (
-    talon_id VARCHAR(24) NOT NULL,
-    doctor_appointment_id VARCHAR(24) NOT NULL,
-    PRIMARY KEY (talon_id, doctor_appointment_id),
-    FOREIGN KEY (talon_id) REFERENCES Talon(_id),
-    FOREIGN KEY (doctor_appointment_id) REFERENCES DoctorAppointment(_id)
-);
-
--- 8. Tabla Payment
+-- 7. Tabla Payment
 CREATE TABLE Payment (
     _id VARCHAR(24) PRIMARY KEY,
     patient_id VARCHAR(24) NOT NULL,
@@ -108,8 +104,3 @@ CREATE TABLE Payment (
     FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id),
     FOREIGN KEY (patient_id) REFERENCES Patient(_id)
 );
-
-ALTER TABLE Patient
-CHANGE COLUMN birthDate birth_date DATE;
-
-
