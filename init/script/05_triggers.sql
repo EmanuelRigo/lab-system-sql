@@ -36,3 +36,42 @@ GRANT role_biochemist   TO 'app_biochem'@'%';
 SET DEFAULT ROLE role_admin        FOR 'app_admin'@'%';
 SET DEFAULT ROLE role_receptionist FOR 'app_frontdesk'@'%';
 SET DEFAULT ROLE role_biochemist   FOR 'app_biochem'@'%';
+
+
+-- Triggers
+
+-- Actualizar Talon.is_paid a TRUE tras insertar un pago
+DELIMITER $$
+
+CREATE TRIGGER trg_after_payment_insert
+AFTER INSERT ON Payment
+FOR EACH ROW
+BEGIN
+  UPDATE Talon
+  SET is_paid = TRUE
+  WHERE _id = NEW.talon_id;
+END$$
+
+DELIMITER ;
+
+--- Asignar automáticamente el campo Payment.amount al total_amount del Talon relacionado
+DELIMITER $$
+
+CREATE TRIGGER trg_before_payment_insert
+BEFORE INSERT ON Payment
+FOR EACH ROW
+BEGIN
+    DECLARE talonTotal DECIMAL(10,2);
+
+    -- Buscar el total_amount del talon relacionado
+    SELECT total_amount
+    INTO talonTotal
+    FROM Talon
+    WHERE _id = NEW.talon_id;
+
+    -- Asignar el valor automáticamente al campo amount
+    SET NEW.amount = talonTotal;
+END$$
+
+DELIMITER ;
+
