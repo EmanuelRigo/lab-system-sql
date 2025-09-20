@@ -87,6 +87,25 @@ BEGIN
       );
 END$$
 
+
+--
+DELIMITER ;
+
+
+-- Actualizar DoctorAppointment.status a 'completed' tras insertar un resultado
+
+DELIMITER //
+
+CREATE TRIGGER trg_result_after_insert
+AFTER INSERT ON result
+FOR EACH ROW
+BEGIN
+  -- Actualizamos el status del doctor_appointment relacionado
+  UPDATE doctorAppointment
+  SET status = 'completed'
+  WHERE _id = NEW.doctor_appointment_id;
+END //
+
 DELIMITER ;
 
 

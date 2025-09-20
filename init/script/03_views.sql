@@ -1,4 +1,90 @@
--- USE lab_db_sql;
+
+USE lab_db_sql;
+
+CREATE VIEW TalonWithReceptionistAndPatient AS
+SELECT
+  t._id,          
+  t.is_paid,
+  t.total_amount,
+  t.created_at   AS talon_created_at,
+  t.updated_at   AS talon_updated_at,
+  r.firstname    AS receptionist_firstname,
+  r.lastname     AS receptionist_lastname,
+  p.firstname    AS patient_firstname,
+  p.lastname     AS patient_lastname,
+  p.phone        AS patient_phone
+FROM Talon t
+JOIN LabStaff r ON t.receptionist_id = r._id
+JOIN DoctorAppointment da ON da.talon_id = t._id
+JOIN Patient p ON da.patient_id = p._id;
+
+--
+
+CREATE VIEW DoctorAppointmentWithDetails AS
+SELECT 
+    da._id AS doctor_appointment_id,
+    da.date,
+    da.status,
+    da.is_paid,
+    p.firstname AS patient_firstname,
+    p.lastname AS patient_lastname,
+    p.phone AS patient_phone,
+    ms.name AS medical_study_name
+FROM DoctorAppointment da
+JOIN Patient p 
+    ON da.patient_id = p._id
+JOIN MedicalStudy ms 
+    ON da.medical_study_id = ms._id;
+
+--
+
+
+CREATE VIEW DoctorAppointmentWithReceptionist AS
+SELECT 
+    da._id AS doctor_appointment_id,
+    da.date,
+    da.status,
+    da.is_paid,
+    p.firstname AS patient_firstname,
+    p.lastname AS patient_lastname,
+    p.phone AS patient_phone,
+    ms.name AS medical_study_name,
+    r.firstname AS receptionist_firstname,
+    r.lastname AS receptionist_lastname
+FROM DoctorAppointment da
+JOIN Patient p 
+    ON da.patient_id = p._id
+JOIN MedicalStudy ms 
+    ON da.medical_study_id = ms._id
+JOIN LabStaff r
+    ON da.receptionist_id = r._id;
+
+--
+
+CREATE VIEW PaidDoctorAppointments AS
+SELECT 
+    da._id AS doctor_appointment_id,
+    da.date,
+    da.status,
+    da.is_paid,
+    p.firstname AS patient_firstname,
+    p.lastname AS patient_lastname,
+    p.phone AS patient_phone,
+    ms.name AS medical_study_name
+FROM DoctorAppointment da
+JOIN Patient p 
+    ON da.patient_id = p._id
+JOIN MedicalStudy ms 
+    ON da.medical_study_id = ms._id
+WHERE da.is_paid = TRUE;
+
+
+-- SELECT * 
+-- FROM PaidDoctorAppointments
+-- WHERE medical_study_name = 'Hemograma';
+
+--
+
 
 -- -- Citas con datos del paciente y estudio
 -- CREATE OR REPLACE VIEW v_appointments_full AS

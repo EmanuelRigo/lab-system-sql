@@ -50,6 +50,7 @@ CREATE TABLE MedicalStudy (
 CREATE TABLE Result (
     _id VARCHAR(24) PRIMARY KEY,
     medical_study_id VARCHAR(24) NOT NULL,
+    doctor_appointment_id VARCHAR(24) NOT NULL,
     labtechnician_id VARCHAR(24),
     biochemist_id VARCHAR(24),
     status ENUM('pending', 'completed', 'failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'pending',
@@ -118,3 +119,7 @@ CREATE TABLE Payment (
 ALTER TABLE Result  
 ADD CONSTRAINT fk_result_medical_study  
 FOREIGN KEY (medical_study_id) REFERENCES MedicalStudy(_id);
+
+ALTER TABLE Result  
+ADD CONSTRAINT fk_result_doctor_appointment
+FOREIGN KEY (doctor_appointment_id) REFERENCES DoctorAppointment(_id);
