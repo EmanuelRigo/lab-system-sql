@@ -97,7 +97,7 @@ DELIMITER ;
 DELIMITER //
 
 CREATE TRIGGER trg_result_after_insert
-AFTER INSERT ON result
+AFTER INSERT ON Result
 FOR EACH ROW
 BEGIN
   -- Actualizamos el status del doctor_appointment relacionado
