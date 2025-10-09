@@ -1,9 +1,15 @@
-
 USE lab_db_sql;
 
-CREATE VIEW TalonWithReceptionistAndPatient AS
+-- ==========================================================
+-- VIEW 1: TalonWithReceptionistAndPatient
+-- Descripción:
+-- Muestra información de cada Talon junto con los datos del 
+-- recepcionista que lo creó y el paciente asociado al turno 
+-- (DoctorAppointment) vinculado.
+-- ==========================================================
+CREATE OR REPLACE VIEW TalonWithReceptionistAndPatient AS
 SELECT
-  t._id,          
+  t._id AS talon_id,          
   t.is_paid,
   t.total_amount,
   t.created_at   AS talon_created_at,
@@ -14,13 +20,22 @@ SELECT
   p.lastname     AS patient_lastname,
   p.phone        AS patient_phone
 FROM Talon t
-JOIN LabStaff r ON t.receptionist_id = r._id
-JOIN DoctorAppointment da ON da.talon_id = t._id
-JOIN Patient p ON da.patient_id = p._id;
+JOIN LabStaff r 
+  ON t.receptionist_id = r._id
+JOIN DoctorAppointment da 
+  ON da.talon_id = t._id
+JOIN Patient p 
+  ON da.patient_id = p._id;
 
---
 
-CREATE VIEW DoctorAppointmentWithDetails AS
+-- ==========================================================
+-- VIEW 2: DoctorAppointmentWithDetails
+-- Descripción:
+-- Muestra los turnos médicos con datos del paciente y los 
+-- estudios médicos vinculados a través de las tablas 
+-- Orden y Orden_MedicalStudy.
+-- ==========================================================
+CREATE OR REPLACE VIEW DoctorAppointmentWithDetails AS
 SELECT 
     da._id AS doctor_appointment_id,
     da.date,
@@ -33,13 +48,21 @@ SELECT
 FROM DoctorAppointment da
 JOIN Patient p 
     ON da.patient_id = p._id
+JOIN Orden o 
+    ON o.doctor_appointment_id = da._id
+JOIN Orden_MedicalStudy oms 
+    ON oms.orden_id = o._id
 JOIN MedicalStudy ms 
-    ON da.medical_study_id = ms._id;
-
---
+    ON ms._id = oms.medical_study_id;
 
 
-CREATE VIEW DoctorAppointmentWithReceptionist AS
+-- ==========================================================
+-- VIEW 3: DoctorAppointmentWithReceptionist
+-- Descripción:
+-- Muestra los turnos médicos junto con el paciente, 
+-- los estudios asociados y el recepcionista que registró el turno.
+-- ==========================================================
+CREATE OR REPLACE VIEW DoctorAppointmentWithReceptionist AS
 SELECT 
     da._id AS doctor_appointment_id,
     da.date,
@@ -54,14 +77,23 @@ SELECT
 FROM DoctorAppointment da
 JOIN Patient p 
     ON da.patient_id = p._id
+JOIN Orden o 
+    ON o.doctor_appointment_id = da._id
+JOIN Orden_MedicalStudy oms 
+    ON oms.orden_id = o._id
 JOIN MedicalStudy ms 
-    ON da.medical_study_id = ms._id
+    ON ms._id = oms.medical_study_id
 JOIN LabStaff r
     ON da.receptionist_id = r._id;
 
---
 
-CREATE VIEW PaidDoctorAppointments AS
+-- ==========================================================
+-- VIEW 4: PaidDoctorAppointments
+-- Descripción:
+-- Lista únicamente los turnos médicos que han sido pagados,
+-- junto con la información del paciente y los estudios asociados.
+-- ==========================================================
+CREATE OR REPLACE VIEW PaidDoctorAppointments AS
 SELECT 
     da._id AS doctor_appointment_id,
     da.date,
@@ -74,57 +106,13 @@ SELECT
 FROM DoctorAppointment da
 JOIN Patient p 
     ON da.patient_id = p._id
+JOIN Orden o 
+    ON o.doctor_appointment_id = da._id
+JOIN Orden_MedicalStudy oms 
+    ON oms.orden_id = o._id
 JOIN MedicalStudy ms 
-    ON da.medical_study_id = ms._id
+    ON ms._id = oms.medical_study_id
 WHERE da.is_paid = TRUE;
 
-
--- SELECT * 
--- FROM PaidDoctorAppointments
--- WHERE medical_study_name = 'Hemograma';
-
---
-
-
--- -- Citas con datos del paciente y estudio
--- CREATE OR REPLACE VIEW v_appointments_full AS
--- SELECT
---   da.id              AS appointment_id,
---   da.date,
---   da.status,
---   da.isPaid,
---   p.id               AS patient_id,
---   CONCAT(p.firstname,' ',p.lastname) AS patient_name,
---   ms.id              AS study_id,
---   ms.name            AS study_name,
---   da.talonID,
---   da.resultID
--- FROM DoctorAppointment da
--- JOIN Patient p      ON p.id = da.patientID
--- JOIN MedicalStudy ms ON ms.id = da.medicalStudyID;
-
--- -- Historial por paciente
--- CREATE OR REPLACE VIEW v_patient_history AS
--- SELECT
---   p.id AS patient_id,
---   CONCAT(p.firstname,' ',p.lastname) AS patient_name,
---   da.id AS appointment_id,
---   da.date,
---   ms.name AS study_name,
---   da.status,
---   da.isPaid
--- FROM Patient p
--- JOIN DoctorAppointment da ON da.patientID = p.id
--- JOIN MedicalStudy ms ON ms.id = da.medicalStudyID
--- ORDER BY da.date DESC;
-
--- -- Resultados listos con bioquímico
--- CREATE OR REPLACE VIEW v_results_full AS
--- SELECT
---   r.id AS result_id,
---   r.created_at,
---   r.description,
---   ls.id AS biochemist_id,
---   CONCAT(ls.firstname,' ',ls.lastname) AS biochemist_name
--- FROM Result r
--- JOIN LabStaff ls ON ls.id = r.biochemistID;
+-- Ejemplo de consulta:
+-- SELECT * FROM PaidDoctorAppointments WHERE medical_study_name = 'Hemograma';
