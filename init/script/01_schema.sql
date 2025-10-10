@@ -1,8 +1,16 @@
+-- ==========================================================
+-- ✅ CREACIÓN DE BASE DE DATOS
+-- ==========================================================
 CREATE DATABASE IF NOT EXISTS lab_db_sql
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_general_ci;
 
 USE lab_db_sql;
+
+
+-- ==========================================================
+-- ✅ TABLAS PRINCIPALES
+-- ==========================================================
 
 -- 1. Tabla LabStaff
 CREATE TABLE LabStaff (
@@ -74,7 +82,18 @@ CREATE TABLE DoctorAppointment (
     FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
 );
 
--- 6. NUEVA Tabla Orden
+-- 6. Tabla intermedia DoctorAppointment_MedicalStudy (muchos a muchos)
+CREATE TABLE DoctorAppointment_MedicalStudy (
+    doctor_appointment_id VARCHAR(24) NOT NULL,
+    medical_study_id VARCHAR(24) NOT NULL,
+    PRIMARY KEY (doctor_appointment_id, medical_study_id),
+    FOREIGN KEY (doctor_appointment_id) REFERENCES DoctorAppointment(_id)
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (medical_study_id) REFERENCES MedicalStudy(_id)
+      ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- 7. Tabla Orden
 CREATE TABLE Orden (
     _id VARCHAR(24) PRIMARY KEY,
     doctor_appointment_id VARCHAR(24) NOT NULL,
@@ -83,7 +102,7 @@ CREATE TABLE Orden (
     FOREIGN KEY (doctor_appointment_id) REFERENCES DoctorAppointment(_id)
 );
 
--- 7. Tabla intermedia Orden_MedicalStudy (muchos a muchos)
+-- 8. Tabla intermedia Orden_MedicalStudy (muchos a muchos)
 CREATE TABLE Orden_MedicalStudy (
     orden_id VARCHAR(24) NOT NULL,
     medical_study_id VARCHAR(24) NOT NULL,
@@ -92,7 +111,7 @@ CREATE TABLE Orden_MedicalStudy (
     FOREIGN KEY (medical_study_id) REFERENCES MedicalStudy(_id)
 );
 
--- 8. Tabla Result (ajustada)
+-- 9. Tabla Result
 CREATE TABLE Result (
     _id VARCHAR(24) PRIMARY KEY,
     orden_id VARCHAR(24) NOT NULL,
@@ -111,7 +130,7 @@ CREATE TABLE Result (
     FOREIGN KEY (labtechnician_id) REFERENCES LabStaff(_id)
 );
 
--- 9. Tabla PaymentMethod
+-- 10. Tabla PaymentMethod
 CREATE TABLE PaymentMethod (
     _id VARCHAR(24) PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
@@ -121,7 +140,7 @@ CREATE TABLE PaymentMethod (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- 10. Tabla Payment
+-- 11. Tabla Payment
 CREATE TABLE Payment (
     _id VARCHAR(24) PRIMARY KEY,
     amount DECIMAL(10,2),
