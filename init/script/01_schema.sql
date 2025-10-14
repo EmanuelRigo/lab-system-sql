@@ -74,7 +74,7 @@ CREATE TABLE DoctorAppointment (
     receptionist_id VARCHAR(24) NOT NULL,
     date DATETIME NOT NULL,
     reason TEXT,
-    status ENUM('scheduled', 'completed', 'cancelled') DEFAULT 'scheduled',
+    status ENUM('scheduled', 'waiting', 'completed', 'cancelled') DEFAULT 'scheduled',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (talon_id) REFERENCES Talon(_id),
@@ -118,7 +118,7 @@ CREATE TABLE Result (
     medical_study_id VARCHAR(24) NOT NULL,
     labtechnician_id VARCHAR(24),
     biochemist_id VARCHAR(24),
-    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+    status ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending',
     result VARCHAR(255),
     description TEXT,
     extraction_date DATETIME,
@@ -129,6 +129,10 @@ CREATE TABLE Result (
     FOREIGN KEY (biochemist_id) REFERENCES LabStaff(_id),
     FOREIGN KEY (labtechnician_id) REFERENCES LabStaff(_id)
 );
+
+
+ALTER TABLE Result
+ADD UNIQUE KEY uk_orden_study (orden_id, medical_study_id);
 
 -- 10. Tabla PaymentMethod
 CREATE TABLE PaymentMethod (

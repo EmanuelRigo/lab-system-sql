@@ -1,137 +1,119 @@
 USE lab_db_sql;
 
--- ==========================================================
--- ✅ TRIGGERS COMPLETOS
--- ==========================================================
-
--- ==========================================================
--- 1️⃣ Asignar automáticamente el monto del Payment al total del Talon
--- ==========================================================
 DELIMITER $$
 
-DROP TRIGGER IF EXISTS trg_before_payment_insert$$
-CREATE TRIGGER trg_before_payment_insert
+-- ==========================================================
+-- 1. TRIGGERS DE CÁLCULO (Recalculan el total del talón)
+-- ==========================================================
+
+/* 1.1. TRIGGER: Cuando se actualiza una cita (cambio o asignación de talón) */
+DROP TRIGGER IF EXISTS trg_update_talon_total_amount$$
+CREATE TRIGGER trg_update_talon_total_amount
+AFTER UPDATE ON DoctorAppointment
+FOR EACH ROW
+BEGIN
+  IF NEW.talon_id IS NOT NULL AND (OLD.talon_id IS NULL OR OLD.talon_id <> NEW.talon_id) THEN
+    CALL recalc_talon_total(NEW.talon_id);
+  END IF;
+
+  IF OLD.talon_id IS NOT NULL AND OLD.talon_id <> NEW.talon_id THEN
+    CALL recalc_talon_total(OLD.talon_id);
+  END IF;
+END$$
+
+
+/* 1.2. TRIGGER: Cuando se AGREGA un estudio a una cita */
+DROP TRIGGER IF EXISTS trg_dam_after_insert$$
+CREATE TRIGGER trg_dam_after_insert
+AFTER INSERT ON DoctorAppointment_MedicalStudy
+FOR EACH ROW
+BEGIN
+  DECLARE v_talon_id VARCHAR(24);
+
+  SELECT talon_id INTO v_talon_id
+  FROM DoctorAppointment
+  WHERE _id = NEW.doctor_appointment_id
+  LIMIT 1;
+
+  IF v_talon_id IS NOT NULL THEN
+    CALL recalc_talon_total(v_talon_id);
+  END IF;
+END$$
+
+
+/* 1.3. TRIGGER: Cuando se ELIMINA un estudio de una cita */
+DROP TRIGGER IF EXISTS trg_dam_after_delete$$
+CREATE TRIGGER trg_dam_after_delete
+AFTER DELETE ON DoctorAppointment_MedicalStudy
+FOR EACH ROW
+BEGIN
+  DECLARE v_talon_id VARCHAR(24);
+
+  SELECT talon_id INTO v_talon_id
+  FROM DoctorAppointment
+  WHERE _id = OLD.doctor_appointment_id
+  LIMIT 1;
+
+  IF v_talon_id IS NOT NULL THEN
+    CALL recalc_talon_total(v_talon_id);
+  END IF;
+END$$
+
+-- ==========================================================
+-- 2. TRIGGERS DE PAGO (Disparan la lógica de pago y orden)
+-- ==========================================================
+
+/* 2.1. TRIGGER BEFORE INSERT (Garantiza que el monto es correcto) */
+DROP TRIGGER IF EXISTS trg_payment_before_insert$$
+
+CREATE TRIGGER trg_payment_before_insert
 BEFORE INSERT ON Payment
 FOR EACH ROW
 BEGIN
-  DECLARE talonTotal DECIMAL(10,2);
-  DECLARE patientId VARCHAR(24);
+    DECLARE v_total_amount DECIMAL(10,2);
+    
+    IF NEW.talon_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'El pago debe estar asociado a un talon (talon_id no puede ser NULL).';
+    END IF;
 
-  -- Obtener el total_amount y patient_id del Talon
-  SELECT t.total_amount, da.patient_id
-  INTO talonTotal, patientId
-  FROM Talon t
-  JOIN DoctorAppointment da ON da.talon_id = t._id
-  WHERE t._id = NEW.talon_id
-  LIMIT 1;
+    -- Obtener el total_amount del Talon asociado
+    SELECT total_amount
+    INTO v_total_amount
+    FROM Talon
+    WHERE _id = NEW.talon_id
+    LIMIT 1;
 
-  -- Asignar automáticamente el total del Talon al Payment
-  SET NEW.amount = talonTotal;
-
-  -- Enlazar las citas del paciente con el mismo talón (si aún no lo están)
-  UPDATE DoctorAppointment
-  SET talon_id = NEW.talon_id
-  WHERE talon_id IS NULL AND patient_id = patientId;
+    -- Asignar (o forzar) el monto del pago al total del talón.
+    SET NEW.amount = v_total_amount;
+    
 END$$
 
-DELIMITER ;
 
--- ==========================================================
--- 2️⃣ Crear Orden y actualizar Talon tras el pago
--- ==========================================================
-DELIMITER $$
+/* 2.2. TRIGGER AFTER INSERT (Dispara el procesamiento de la orden) */
+DROP TRIGGER IF EXISTS trg_payment_after_insert$$
 
-DROP TRIGGER IF EXISTS trg_after_payment_insert$$
-CREATE TRIGGER trg_after_payment_insert
+CREATE TRIGGER trg_payment_after_insert
 AFTER INSERT ON Payment
 FOR EACH ROW
 BEGIN
-  DECLARE newOrderId VARCHAR(24);
-  DECLARE totalAmount DECIMAL(10,2);
-  DECLARE done INT DEFAULT FALSE;
-  DECLARE da_id VARCHAR(24);
-
-  -- Cursor y handler deben declararse antes de cualquier otra sentencia
-  DECLARE da_cursor CURSOR FOR
-    SELECT _id FROM DoctorAppointment WHERE talon_id = NEW.talon_id;
-  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-
-  -- 1️⃣ Marcar el Talon como pagado
-  UPDATE Talon
-  SET is_paid = TRUE
-  WHERE _id = NEW.talon_id;
-
-  -- 2️⃣ Marcar las DoctorAppointments asociadas como pagadas
-  UPDATE DoctorAppointment
-  SET is_paid = TRUE
-  WHERE talon_id = NEW.talon_id;
-
-  -- 3️⃣ Crear una nueva Orden para cada DoctorAppointment pagado
-  OPEN da_cursor;
-
-  read_loop: LOOP
-    FETCH da_cursor INTO da_id;
-    IF done THEN
-      LEAVE read_loop;
-    END IF;
-
-    SET newOrderId = UUID();
-
-    -- Crear la orden
-    INSERT INTO Orden (_id, doctor_appointment_id, created_at, updated_at)
-    VALUES (newOrderId, da_id, NOW(), NOW());
-
-    -- Vincular estudios a la orden
-    INSERT INTO Orden_MedicalStudy (orden_id, medical_study_id)
-    SELECT newOrderId, dam.medical_study_id
-    FROM DoctorAppointment_MedicalStudy dam
-    WHERE dam.doctor_appointment_id = da_id;
-
-    -- Calcular total de la orden
-    SELECT SUM(ms.price)
-    INTO totalAmount
-    FROM Orden_MedicalStudy oms
-    JOIN MedicalStudy ms ON ms._id = oms.medical_study_id
-    WHERE oms.orden_id = newOrderId;
-
-    -- Actualizar el total del Talon
-    UPDATE Talon
-    SET total_amount = total_amount + IFNULL(totalAmount, 0)
-    WHERE _id = NEW.talon_id;
-
-  END LOOP;
-
-  CLOSE da_cursor;
+    CALL process_payment_and_generate_order(NEW._id);
 END$$
 
-DELIMITER ;
-
-
 -- ==========================================================
--- 3️⃣ Actualizar DoctorAppointment.status a 'completed' tras insertar un Result
+-- 3. TRIGGER DE RESULTADOS (Dispara el cambio de estado de la cita)
 -- ==========================================================
-DELIMITER $$
 
 DROP TRIGGER IF EXISTS trg_result_after_insert$$
+
 CREATE TRIGGER trg_result_after_insert
 AFTER INSERT ON Result
 FOR EACH ROW
 BEGIN
-  DECLARE appointmentId VARCHAR(24);
-
-  -- Buscar el doctor_appointment_id asociado a la Orden del resultado
-  SELECT o.doctor_appointment_id
-  INTO appointmentId
-  FROM Orden o
-  WHERE o._id = NEW.orden_id
-  LIMIT 1;
-
-  -- Si encontramos la cita, la marcamos como completada
-  IF appointmentId IS NOT NULL THEN
-    UPDATE DoctorAppointment
-    SET status = 'completed'
-    WHERE _id = appointmentId;
-  END IF;
+    -- Llama al procedimiento que verifica si todos los estudios de la cita
+    -- asociada a esta orden están completos.
+    CALL check_and_complete_appointment(NEW.orden_id);
 END$$
 
+-- Volver al delimitador por defecto (;)
 DELIMITER ;

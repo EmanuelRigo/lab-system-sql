@@ -33,34 +33,62 @@ INSERT INTO Patient (_id, firstname, secondname, lastname, birth_date, dni, emai
 -- ==========================================================
 -- 📅 DoctorAppointment
 -- ==========================================================
--- Nota: ya no existe 'medical_study_id' aquí
 INSERT INTO DoctorAppointment (_id, is_paid, talon_id, patient_id, receptionist_id, date, reason, status)
 VALUES
-('da0000000000000000000001', 0, NULL, '66452b9c79213525b81391aa', '94e8892f7265c287c8af987f', '2025-10-01 10:00:00', 'Control de rutina', 'scheduled'),
-('da0000000000000000000002', 0, NULL, '66452b9c79213525b81391ab', '94e8892f7265c287c8af987f', '2025-10-01 11:00:00', 'Chequeo anual', 'scheduled');
+('da0000000000000000000001', 0, NULL, '66452b9c79213525b81391aa', '94e8892f7265c287c8af987f', '2025-10-11 10:00:00', 'Control de rutina', 'scheduled'),
+('da0000000000000000000002', 0, NULL, '66452b9c79213525b81391ab', '94e8892f7265c287c8af987f', '2025-10-11 11:00:00', 'Chequeo anual', 'scheduled');
 
 -- ==========================================================
--- 🧩 DoctorAppointment_MedicalStudy (nueva tabla intermedia)
+-- 🧩 DoctorAppointment_MedicalStudy
 -- ==========================================================
 INSERT INTO DoctorAppointment_MedicalStudy (doctor_appointment_id, medical_study_id) VALUES
 ('da0000000000000000000001', '64a1f0a9b1234567890abc01'),
-('da0000000000000000000002', '64a1f0a9b1234567890abc02');
+('da0000000000000000000001', '64a1f0a9b1234567890abc03'),
+('da0000000000000000000002', '64a1f0a9b1234567890abc02'),
+('da0000000000000000000002', '64a1f0a9b1234567890abc04');
 
 -- ==========================================================
 -- 🧾 Talon
 -- ==========================================================
-INSERT INTO Talon (_id, receptionist_id, is_paid, total_amount) VALUES
-('ta0000000000000000000001', '94e8892f7265c287c8af987f', 0, 7000.00);
+INSERT INTO Talon (_id, receptionist_id, is_paid, total_amount)
+VALUES 
+('ta0000000000000000000001', '94e8892f7265c287c8af987f', 0, 0.00);
 
 -- ==========================================================
--- 💰 Payment
--- ==========================================================
-INSERT INTO Payment (_id, amount, talon_id, payment_method_id) VALUES
-('pa0000000000000000000001', 7000.00, 'ta0000000000000000000001', '663d55e86673791244de12c1');
-
--- ==========================================================
--- 🔄 Actualizar citas con talon_id
+-- 🔄 Vincular el talon a las citas (esto activa triggers de cálculo)
 -- ==========================================================
 UPDATE DoctorAppointment
 SET talon_id = 'ta0000000000000000000001'
 WHERE _id IN ('da0000000000000000000001', 'da0000000000000000000002');
+
+-- ==========================================================
+-- 💰 Payment
+-- ==========================================================
+-- (Este insert activa el trigger para marcar pagado el talón y las citas)
+INSERT INTO Payment (_id, amount, talon_id, payment_method_id)
+VALUES 
+('pa0000000000000000000001', 0, 'ta0000000000000000000001', '663d55e86673791244de12c1');
+
+
+INSERT INTO DoctorAppointment_MedicalStudy (doctor_appointment_id, medical_study_id) VALUES
+('da0000000000000000000001', '64a1f0a9b1234567890abc04');
+
+UPDATE DoctorAppointment SET talon_id='ta0000000000000000000001' WHERE _id='da0000000000000000000001';
+
+INSERT INTO Payment (_id, talon_id, payment_method_id, amount)
+VALUES (
+    'pa6000000000000000000001', 
+    'ta0000000000000000000001', 
+    '663d55e86673791244de12c1', 
+    NULL
+);
+
+
+INSERT INTO Result (_id, orden_id, medical_study_id, labtechnician_id, result)
+VALUES (
+    'res600000000000000000002', -- ID único del resultado
+    '7b4b6362-a92d-11f0-997a-', -- ID de la Orden que se generó previamente
+    '64a1f0a9b1234567890abc01', -- ID del estudio asociado a la orden
+    '94e8892f7265c287c8af987f', -- ID del staff (ej: Laboratorista)
+    'Resultado: Todo normal. Glucosa: 85 mg/dL.' -- Datos del resultado
+);

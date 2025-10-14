@@ -1,57 +1,141 @@
--- USE lab_db_sql;
+USE lab_db_sql;
 
--- -- ==========================================================
--- -- 1. Crear roles (si no existen)
--- -- ==========================================================
--- CREATE ROLE IF NOT EXISTS role_admin;
--- CREATE ROLE IF NOT EXISTS role_receptionist;
--- CREATE ROLE IF NOT EXISTS role_lab_technician;
--- CREATE ROLE IF NOT EXISTS role_biochemist;
+DELIMITER $$
 
--- -- ==========================================================
--- -- 2. Permisos por rol
--- -- ==========================================================
+-- ==========================================================
+-- 1. PROCEDIMIENTO AUXILIAR: recalcula total_amount de un talon
+-- ==========================================================
+DROP PROCEDURE IF EXISTS recalc_talon_total$$
 
--- -- Admin: acceso amplio
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.MedicalStudy      TO role_admin;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.Result            TO role_admin;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.LabStaff          TO role_admin;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.Patient           TO role_admin;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.DoctorAppointment TO role_admin;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.Payment           TO role_admin;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.Talon             TO role_admin;
+CREATE PROCEDURE recalc_talon_total(IN p_talon_id VARCHAR(24))
+proc_block: BEGIN
+  DECLARE v_total DECIMAL(10,2); 
 
--- -- Receptionist: gestión de pacientes, citas, talones y pagos
--- GRANT SELECT                                 ON lab_db_sql.MedicalStudy      TO role_receptionist;
--- GRANT SELECT                                 ON lab_db_sql.Result            TO role_receptionist;
--- GRANT SELECT, INSERT, UPDATE                 ON lab_db_sql.Patient           TO role_receptionist;
--- GRANT SELECT, INSERT, UPDATE                 ON lab_db_sql.DoctorAppointment TO role_receptionist;
--- GRANT SELECT, INSERT                         ON lab_db_sql.Payment           TO role_receptionist;
--- GRANT SELECT, INSERT                         ON lab_db_sql.Talon             TO role_receptionist;
+  IF p_talon_id IS NULL THEN
+    LEAVE proc_block;
+  END IF;
 
--- -- Lab Technician: resultados y citas
--- GRANT SELECT                                 ON lab_db_sql.MedicalStudy      TO role_lab_technician;
--- GRANT SELECT, INSERT, UPDATE                 ON lab_db_sql.Result            TO role_lab_technician;
--- GRANT SELECT, UPDATE                         ON lab_db_sql.DoctorAppointment TO role_lab_technician;
+  SELECT IFNULL(SUM(ms.price), 0)
+  INTO v_total
+  FROM DoctorAppointment da
+  JOIN DoctorAppointment_MedicalStudy dam ON dam.doctor_appointment_id = da._id
+  JOIN MedicalStudy ms ON ms._id = dam.medical_study_id
+  WHERE da.talon_id = p_talon_id;
 
--- -- Biochemist: resultados
--- GRANT SELECT, INSERT, UPDATE                 ON lab_db_sql.Result            TO role_biochemist;
+  UPDATE Talon
+  SET total_amount = v_total
+  WHERE _id = p_talon_id;
+  
+END proc_block$$
 
--- -- ==========================================================
--- -- 3. Crear usuarios de aplicación
--- -- ==========================================================
--- CREATE USER IF NOT EXISTS 'app_admin'@'%'     IDENTIFIED BY 'ChangeMe_admin!';
--- CREATE USER IF NOT EXISTS 'app_frontdesk'@'%' IDENTIFIED BY 'ChangeMe_frontdesk!';
--- CREATE USER IF NOT EXISTS 'app_biochem'@'%'   IDENTIFIED BY 'ChangeMe_biochem!';
+-- ==========================================================
+-- 2. PROCEDIMIENTO DE PAGO: process_payment_and_generate_order
+-- ==========================================================
+DROP PROCEDURE IF EXISTS process_payment_and_generate_order$$
 
--- -- ==========================================================
--- -- 4. Asignar roles a los usuarios
--- -- ==========================================================
--- GRANT role_admin       TO 'app_admin'@'%';
--- GRANT role_receptionist TO 'app_frontdesk'@'%';
--- GRANT role_biochemist   TO 'app_biochem'@'%';
+CREATE PROCEDURE process_payment_and_generate_order(IN p_payment_id VARCHAR(24))
+proc_block: BEGIN
+    DECLARE v_talon_id VARCHAR(24);
+    DECLARE v_orden_id VARCHAR(24);
+    DECLARE v_doctor_appointment_id VARCHAR(24);
 
--- -- ==========================================================
--- -- 5. Aplicar cambios
--- -- ==========================================================
--- FLUSH PRIVILEGES;
+    -- 1. Obtener el talon_id del pago
+    SELECT talon_id INTO v_talon_id
+    FROM Payment
+    WHERE _id = p_payment_id
+    LIMIT 1;
+
+    IF v_talon_id IS NULL THEN
+        LEAVE proc_block;
+    END IF;
+
+    -- 2. Actualizar Talon y DoctorAppointment (lógica de pago)
+    UPDATE Talon
+    SET is_paid = TRUE
+    WHERE _id = v_talon_id;
+
+    UPDATE DoctorAppointment
+    SET is_paid = TRUE
+    WHERE talon_id = v_talon_id;
+
+    -- 3. Generar Orden y Orden_MedicalStudy
+    BEGIN
+        DECLARE done INT DEFAULT FALSE;
+        DECLARE cur_appointment CURSOR FOR 
+            SELECT _id
+            FROM DoctorAppointment
+            WHERE talon_id = v_talon_id;
+        
+        DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+        OPEN cur_appointment;
+
+        read_loop: LOOP
+            FETCH cur_appointment INTO v_doctor_appointment_id;
+            IF done THEN
+                LEAVE read_loop;
+            END IF;
+
+            -- Usando LEFT(UUID(), 24)
+            SET v_orden_id = LEFT(UUID(), 24); 
+
+            -- Insertar la nueva Orden
+            INSERT INTO Orden (_id, doctor_appointment_id)
+            VALUES (v_orden_id, v_doctor_appointment_id);
+
+            -- Copiar MedicalStudies
+            INSERT INTO Orden_MedicalStudy (orden_id, medical_study_id)
+            SELECT v_orden_id, medical_study_id
+            FROM DoctorAppointment_MedicalStudy
+            WHERE doctor_appointment_id = v_doctor_appointment_id;
+
+        END LOOP;
+
+        CLOSE cur_appointment;
+    END;
+
+END proc_block$$
+
+-- ==========================================================
+-- 3. PROCEDIMIENTO DE RESULTADOS: check_and_complete_appointment
+-- ==========================================================
+DROP PROCEDURE IF EXISTS check_and_complete_appointment$$
+
+CREATE PROCEDURE check_and_complete_appointment(IN p_orden_id VARCHAR(24))
+proc_block: BEGIN
+    DECLARE v_doctor_appointment_id VARCHAR(24);
+    DECLARE v_total_studies INT;
+    DECLARE v_completed_results INT;
+
+    -- 1. Obtener el ID de la cita asociada a esta orden
+    SELECT doctor_appointment_id INTO v_doctor_appointment_id
+    FROM Orden
+    WHERE _id = p_orden_id
+    LIMIT 1;
+
+    IF v_doctor_appointment_id IS NULL THEN
+        LEAVE proc_block;
+    END IF;
+
+    -- 2. Contar el número TOTAL de estudios que se ordenaron para esta cita
+    SELECT COUNT(*) INTO v_total_studies
+    FROM DoctorAppointment_MedicalStudy
+    WHERE doctor_appointment_id = v_doctor_appointment_id;
+
+    -- 3. Contar el número de estudios que YA tienen un RESULTADO
+    SELECT COUNT(DISTINCT r.medical_study_id) INTO v_completed_results
+    FROM Result r
+    JOIN Orden o ON r.orden_id = o._id
+    WHERE o.doctor_appointment_id = v_doctor_appointment_id;
+
+    -- 4. Verificar si todos los resultados están completos y actualizar el estado
+    IF v_total_studies > 0 AND v_total_studies = v_completed_results THEN
+        UPDATE DoctorAppointment
+        SET status = 'completed'
+        WHERE _id = v_doctor_appointment_id
+        AND status <> 'completed';
+    END IF;
+
+END proc_block$$
+
+DELIMITER ;
