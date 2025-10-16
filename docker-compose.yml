@@ -14,7 +14,7 @@ services:
       - ./mysql_data:/var/lib/mysql
       - ./init/script:/docker-entrypoint-initdb.d
       - ./init/data:/var/lib/mysql-files
-    command: --local-infile=1 --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    command: --local-infile=1 --secure-file-priv=/var/lib/mysql-files --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
     cap_add:
       - SYS_NICE
     security_opt:

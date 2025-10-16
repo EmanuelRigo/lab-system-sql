@@ -24,7 +24,7 @@
 -- GRANT SELECT, INSERT, UPDATE         ON lab_db_sql.DoctorAppointment   TO receptionist;
 -- GRANT SELECT, INSERT                 ON lab_db_sql.Payment             TO receptionist;
 -- GRANT SELECT, INSERT                 ON lab_db_sql.Talon               TO receptionist;
--- -- GRANT SELECT                         ON lab_db_sql.v_appointments_full TO receptionist;
+-- -- GRANT SELECT                      ON lab_db_sql.v_appointments_full TO receptionist;
 
 -- -- LabTechnician: pacientes, citas, talones, pagos (CRUD básico)
 -- GRANT SELECT                         ON lab_db_sql.MedicalStudy        TO receptionist;

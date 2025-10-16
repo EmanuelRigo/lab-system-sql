@@ -1,118 +1,89 @@
 USE lab_db_sql;
 
--- ==========================================================
--- VIEW 1: TalonWithReceptionistAndPatient
--- Descripción:
--- Muestra información de cada Talon junto con los datos del 
--- recepcionista que lo creó y el paciente asociado al turno 
--- (DoctorAppointment) vinculado.
--- ==========================================================
-CREATE OR REPLACE VIEW TalonWithReceptionistAndPatient AS
+-- 1. Asegúrate de que el delimitador por defecto (;) esté activo.
+-- Si has ejecutado procedimientos o triggers antes, deberías tener: DELIMITER ;
+
+DROP VIEW IF EXISTS vw_patient_results;
+
+CREATE VIEW vw_patient_results AS
 SELECT
-  t._id AS talon_id,          
-  t.is_paid,
-  t.total_amount,
-  t.created_at   AS talon_created_at,
-  t.updated_at   AS talon_updated_at,
-  r.firstname    AS receptionist_firstname,
-  r.lastname     AS receptionist_lastname,
-  p.firstname    AS patient_firstname,
-  p.lastname     AS patient_lastname,
-  p.phone        AS patient_phone
-FROM Talon t
-JOIN LabStaff r 
-  ON t.receptionist_id = r._id
-JOIN DoctorAppointment da 
-  ON da.talon_id = t._id
-JOIN Patient p 
-  ON da.patient_id = p._id;
+    -- Información del Paciente
+    p._id AS patient_id,
+    p.dni,
+    p.firstname,
+    p.lastname,
+    p.birth_date,
+    p.phone,
+
+    -- Información de la Cita
+    da._id AS appointment_id,
+    da.date AS appointment_date,
+    da.status AS appointment_status,
+
+    -- Información de la Orden
+    o._id AS orden_id,
+
+    -- Información del Estudio y el Resultado
+    ms.name AS study_name,
+    ms._id AS study_id,
+    
+    r._id AS result_id,
+    r.status AS result_status,
+    r.result AS result_value,
+    r.description AS result_description,
+    r.extraction_date,
+    
+    -- Personal involucrado (opcional)
+    r.labtechnician_id,
+    r.biochemist_id
+    
+    
+    
+FROM Patient p
+JOIN DoctorAppointment da ON da.patient_id = p._id
+JOIN Orden o ON o.doctor_appointment_id = da._id
+JOIN Result r ON r.orden_id = o._id
+JOIN MedicalStudy ms ON ms._id = r.medical_study_id
+ORDER BY p.lastname, da.date DESC, ms.name; -- El ORDER BY dentro de una VIEW es ignorado por algunas versiones de MySQL, pero es válido.
 
 
--- ==========================================================
--- VIEW 2: DoctorAppointmentWithDetails
--- Descripción:
--- Muestra los turnos médicos con datos del paciente y los 
--- estudios médicos vinculados a través de las tablas 
--- Orden y Orden_MedicalStudy.
--- ==========================================================
-CREATE OR REPLACE VIEW DoctorAppointmentWithDetails AS
-SELECT 
-    da._id AS doctor_appointment_id,
-    da.date,
-    da.status,
+
+USE lab_db_sql;
+
+DROP VIEW IF EXISTS vw_patient_appointments;
+
+CREATE VIEW vw_patient_appointments AS
+SELECT
+    -- Información de la Cita (El foco principal)
+    da._id AS appointment_id,
+    da.date AS appointment_date,
+    da.status AS appointment_status,
+    da.reason,
     da.is_paid,
+    
+    -- Información del Paciente
+    p.dni,
     p.firstname AS patient_firstname,
     p.lastname AS patient_lastname,
-    p.phone AS patient_phone,
-    ms.name AS medical_study_name
-FROM DoctorAppointment da
-JOIN Patient p 
-    ON da.patient_id = p._id
-JOIN Orden o 
-    ON o.doctor_appointment_id = da._id
-JOIN Orden_MedicalStudy oms 
-    ON oms.orden_id = o._id
-JOIN MedicalStudy ms 
-    ON ms._id = oms.medical_study_id;
+    
+    -- Información del Estudio
+    ms.name AS study_name,
+    ms.price AS study_price,
+    
+    -- Información del Talón
+    t._id AS talon_id,
+    t.total_amount,
+    
+    -- Información del Personal
+    ls.firstname AS receptionist_firstname,
+    ls.lastname AS receptionist_lastname
+    
+FROM Patient p
+JOIN DoctorAppointment da ON da.patient_id = p._id -- Une Paciente con Cita
+JOIN LabStaff ls ON da.receptionist_id = ls._id -- Une con Recepcionista
+LEFT JOIN Talon t ON da.talon_id = t._id -- Une con Talón (puede ser NULL si no está asignado)
+LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id -- Une con Estudios
+LEFT JOIN MedicalStudy ms ON dams.medical_study_id = ms._id -- Obtiene el nombre del Estudio
+ORDER BY p.lastname, da.date DESC;
 
 
--- ==========================================================
--- VIEW 3: DoctorAppointmentWithReceptionist
--- Descripción:
--- Muestra los turnos médicos junto con el paciente, 
--- los estudios asociados y el recepcionista que registró el turno.
--- ==========================================================
-CREATE OR REPLACE VIEW DoctorAppointmentWithReceptionist AS
-SELECT 
-    da._id AS doctor_appointment_id,
-    da.date,
-    da.status,
-    da.is_paid,
-    p.firstname AS patient_firstname,
-    p.lastname AS patient_lastname,
-    p.phone AS patient_phone,
-    ms.name AS medical_study_name,
-    r.firstname AS receptionist_firstname,
-    r.lastname AS receptionist_lastname
-FROM DoctorAppointment da
-JOIN Patient p 
-    ON da.patient_id = p._id
-JOIN Orden o 
-    ON o.doctor_appointment_id = da._id
-JOIN Orden_MedicalStudy oms 
-    ON oms.orden_id = o._id
-JOIN MedicalStudy ms 
-    ON ms._id = oms.medical_study_id
-JOIN LabStaff r
-    ON da.receptionist_id = r._id;
-
-
--- ==========================================================
--- VIEW 4: PaidDoctorAppointments
--- Descripción:
--- Lista únicamente los turnos médicos que han sido pagados,
--- junto con la información del paciente y los estudios asociados.
--- ==========================================================
-CREATE OR REPLACE VIEW PaidDoctorAppointments AS
-SELECT 
-    da._id AS doctor_appointment_id,
-    da.date,
-    da.status,
-    da.is_paid,
-    p.firstname AS patient_firstname,
-    p.lastname AS patient_lastname,
-    p.phone AS patient_phone,
-    ms.name AS medical_study_name
-FROM DoctorAppointment da
-JOIN Patient p 
-    ON da.patient_id = p._id
-JOIN Orden o 
-    ON o.doctor_appointment_id = da._id
-JOIN Orden_MedicalStudy oms 
-    ON oms.orden_id = o._id
-JOIN MedicalStudy ms 
-    ON ms._id = oms.medical_study_id
-WHERE da.is_paid = TRUE;
-
--- Ejemplo de consulta:
--- SELECT * FROM PaidDoctorAppointments WHERE medical_study_name = 'Hemograma';
