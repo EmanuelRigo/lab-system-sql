@@ -1,49 +1,65 @@
--- USE lab_db_sql;
+-- Eliminación de roles existentes si los hay
+DROP ROLE IF EXISTS admin;
+DROP ROLE IF EXISTS receptionist;
+DROP ROLE IF EXISTS lab_technician;
+DROP ROLE IF EXISTS biochemist;
 
--- -- Roles (MySQL 8+)
--- CREATE ROLE IF NOT EXISTS admin;
--- CREATE ROLE IF NOT EXISTS receptionist;
--- CREATE ROLE IF NOT EXISTS lab_technician;
--- CREATE ROLE IF NOT EXISTS biochemist;
+-- Creación de roles principales
+-- ADMIN
+CREATE ROLE admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON lab_system.LabStaff TO admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON lab_system.MedicalStudy TO admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON lab_system.PaymentMethod TO admin;
+GRANT SELECT ON lab_system.Result TO admin;
+GRANT SELECT, INSERT, UPDATE ON lab_system.Patient TO admin;
+GRANT SELECT ON lab_system.Orden TO admin;
+GRANT SELECT ON lab_system.DoctorAppointment TO admin;
+GRANT SELECT ON lab_system.Talon TO admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON lab_system.Payment TO admin;
 
--- -- Permisos por rol
 
--- -- Admin: todo
--- GRANT SELECT, INSERT, UPDATE         ON lab_db_sql.MedicalStudy        TO admin;
--- GRANT SELECT                         ON lab_db_sql.Result              TO admin;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.LabStaff            TO admin;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON lab_db_sql.Patient             TO admin;
--- GRANT SELECT,         UPDATE         ON lab_db_sql.DoctorAppointment   TO admin;
--- GRANT SELECT,                        ON lab_db_sql.Payment             TO admin;
--- GRANT SELECT,                        ON lab_db_sql.Talon               TO admin;
+CREATE ROLE receptionist;
+GRANT SELECT, INSERT, UPDATE ON lab_system.Patient TO receptionist;
+GRANT SELECT, INSERT, UPDATE ON lab_system.Appointment TO receptionist;
+GRANT SELECT ON lab_system.TestType TO receptionist;
+GRANT SELECT ON lab_system.Price TO receptionist;
+GRANT SELECT, INSERT ON lab_system.Payment TO receptionist;
+GRANT SELECT, INSERT ON lab_system.Invoice TO receptionist;
+GRANT SELECT ON lab_system.v_appointments_full TO receptionist;
 
--- -- Receptionist: pacientes, citas, talones, pagos (CRUD básico)
--- GRANT SELECT                         ON lab_db_sql.MedicalStudy        TO receptionist;
--- GRANT SELECT                         ON lab_db_sql.Result              TO receptionist;
--- GRANT SELECT, INSERT, UPDATE         ON lab_db_sql.Patient             TO receptionist;
--- GRANT SELECT, INSERT, UPDATE         ON lab_db_sql.DoctorAppointment   TO receptionist;
--- GRANT SELECT, INSERT                 ON lab_db_sql.Payment             TO receptionist;
--- GRANT SELECT, INSERT                 ON lab_db_sql.Talon               TO receptionist;
--- -- GRANT SELECT                      ON lab_db_sql.v_appointments_full TO receptionist;
+CREATE ROLE lab_technician;
+GRANT SELECT ON lab_system.Patient TO lab_technician;
+GRANT SELECT, UPDATE ON lab_system.Sample TO lab_technician;
+GRANT SELECT, INSERT ON lab_system.Result TO lab_technician;
+GRANT SELECT ON lab_system.TestType TO lab_technician;
+GRANT SELECT, UPDATE ON lab_system.Inventory TO lab_technician;
+GRANT SELECT ON lab_system.Appointment TO lab_technician;
 
--- -- LabTechnician: pacientes, citas, talones, pagos (CRUD básico)
--- GRANT SELECT                         ON lab_db_sql.MedicalStudy        TO receptionist;
--- GRANT SELECT, INSERT, UPDATE         ON lab_db_sql.Result              TO receptionist;
--- GRANT SELECT,         UPDATE         ON lab_db_sql.DoctorAppointment   TO receptionist;
+CREATE ROLE biochemist;
+GRANT SELECT ON lab_system.Patient TO biochemist;
+GRANT SELECT, UPDATE ON lab_system.Result TO biochemist;
+GRANT SELECT ON lab_system.Sample TO biochemist;
+GRANT SELECT ON lab_system.TestType TO biochemist;
+GRANT INSERT, UPDATE ON lab_system.ReferenceValues TO biochemist;
+GRANT SELECT ON lab_system.Appointment TO biochemist;
 
--- -- Biochemist: resultados (crear/editar) y lectura de lo demás
--- GRANT SELECT, INSERT, UPDATE         ON lab_db_sql.Result              TO biochemist;
+-- Creación de usuarios ejemplo
+CREATE USER IF NOT EXISTS 'admin_user'@'localhost' IDENTIFIED BY 'admin123';
+CREATE USER IF NOT EXISTS 'receptionist_user'@'localhost' IDENTIFIED BY 'recep123';
+CREATE USER IF NOT EXISTS 'lab_user'@'localhost' IDENTIFIED BY 'lab123';
+CREATE USER IF NOT EXISTS 'biochemist_user'@'localhost' IDENTIFIED BY 'bio123';
 
--- -- Usuarios de ejemplo (cámbiales la contraseña)
--- CREATE USER IF NOT EXISTS 'app_admin'@'%' IDENTIFIED BY 'ChangeMe_admin!';
--- CREATE USER IF NOT EXISTS 'app_frontdesk'@'%' IDENTIFIED BY 'ChangeMe_frontdesk!';
--- CREATE USER IF NOT EXISTS 'app_biochem'@'%' IDENTIFIED BY 'ChangeMe_biochem!';
+-- Asignación de roles a usuarios
+GRANT admin TO 'admin_user'@'localhost';
+GRANT receptionist TO 'receptionist_user'@'localhost';
+GRANT lab_technician TO 'lab_user'@'localhost';
+GRANT biochemist TO 'biochemist_user'@'localhost';
 
--- GRANT admin        TO 'app_admin'@'%';
--- GRANT receptionist TO 'app_frontdesk'@'%';
--- GRANT biochemist   TO 'app_biochem'@'%';
+-- Configurar roles por defecto
+SET DEFAULT ROLE admin TO 'admin_user'@'localhost';
+SET DEFAULT ROLE receptionist TO 'receptionist_user'@'localhost';
+SET DEFAULT ROLE lab_technician TO 'lab_user'@'localhost';
+SET DEFAULT ROLE biochemist TO 'biochemist_user'@'localhost';
 
--- -- Que los roles queden activos por defecto
--- SET DEFAULT ROLE admin        TO 'app_admin'@'%';
--- SET DEFAULT ROLE receptionist TO 'app_frontdesk'@'%';
--- SET DEFAULT ROLE biochemist   TO 'app_biochem'@'%';
+-- Aplicar cambios
+FLUSH PRIVILEGES;
