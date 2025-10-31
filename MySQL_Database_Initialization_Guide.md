@@ -16,7 +16,6 @@ It includes the structure, order of execution, and optional improvements to ensu
 ## 🧱 1️⃣ Database Schema (`01_schema.sql`)
 
 ### ✅ Description
-
 This file creates the **database** and all **main tables** required by the system.
 
 ```sql
@@ -28,17 +27,16 @@ USE lab_db_sql;
 ```
 
 ### 🧩 Tables Created
-
-1. LabStaff
-2. Patient
-3. MedicalStudy
-4. Talon
-5. DoctorAppointment
-6. DoctorAppointment_MedicalStudy
-7. Orden
-8. Orden_MedicalStudy
-9. Result
-10. PaymentMethod
+1. LabStaff  
+2. Patient  
+3. MedicalStudy  
+4. Talon  
+5. DoctorAppointment  
+6. DoctorAppointment_MedicalStudy  
+7. Orden  
+8. Orden_MedicalStudy  
+9. Result  
+10. PaymentMethod  
 11. Payment
 
 Each table includes foreign key constraints, timestamps, and ENUM definitions for consistent data control.
@@ -48,15 +46,12 @@ Each table includes foreign key constraints, timestamps, and ENUM definitions fo
 ## 💡 2️⃣ Recommended Improvements
 
 ### A) Consistent Naming
-
 Keep the `_id` pattern for all primary and foreign keys for clarity.
 
 ### B) Foreign Key Constraints
-
 Ensure `NOT NULL` only when the relation is mandatory (for example, `patient_id` in `DoctorAppointment`).
 
 ### C) Suggested Indexes
-
 If not included in `02_indexes.sql`, add the following for performance:
 
 ```sql
@@ -70,16 +65,16 @@ CREATE INDEX idx_doctorappointment_status ON DoctorAppointment(status);
 
 ## ⚙️ 3️⃣ Execution Order
 
-| Order | File                | Description                          |
-| :---: | :------------------ | :----------------------------------- |
-|  1️⃣   | `01_schema.sql`     | Create database and all tables       |
-|  2️⃣   | `02_indexes.sql`    | Create additional indexes            |
-|  3️⃣   | `03_views.sql`      | Define database views                |
-|  4️⃣   | `04_procedures.sql` | Create stored procedures             |
-|  5️⃣   | `05_triggers.sql`   | Define triggers                      |
-|  6️⃣   | `06_roles.sql`      | Create users, roles, and permissions |
-|  7️⃣   | `07_seed.sql`       | Insert minimal seed data             |
-|  8️⃣   | `08_full_seed.sql`  | Load full data from CSV files        |
+| Order | File | Description |
+|:------:|:------------------|:--------------------------------------|
+| 1️⃣ | `01_schema.sql` | Create database and all tables |
+| 2️⃣ | `02_indexes.sql` | Create additional indexes |
+| 3️⃣ | `03_views.sql` | Define database views |
+| 4️⃣ | `04_procedures.sql` | Create stored procedures |
+| 5️⃣ | `05_triggers.sql` | Define triggers |
+| 6️⃣ | `06_roles.sql` | Create users, roles, and permissions |
+| 7️⃣ | `07_seed.sql` | Insert minimal seed data |
+| 8️⃣ | `08_full_seed.sql` | Load full data from CSV files |
 
 ---
 
@@ -115,8 +110,8 @@ This allows MySQL to execute the SQL files automatically on container startup.
 
 ## 🧾 6️⃣ Notes
 
-- Ensure all `.csv` files exist under `init/data/` for seed operations.
-- Use UTF-8 encoding for CSVs to avoid character issues.
+- Ensure all `.csv` files exist under `init/data/` for seed operations.  
+- Use UTF-8 encoding for CSVs to avoid character issues.  
 - The execution order must be respected to avoid foreign key errors.
 
 ---
