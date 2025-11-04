@@ -1,15 +1,7 @@
--- ==========================================================
--- ✅ CREACIÓN DE BASE DE DATOS
--- ==========================================================
-CREATE DATABASE IF NOT EXISTS lab_db_sql
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_general_ci;
-
 USE lab_db_sql;
 
-
 -- ==========================================================
--- ✅ TABLAS PRINCIPALES2
+-- ✅ TABLAS PRINCIPALES
 -- ==========================================================
 
 -- 1. Tabla LabStaff
@@ -61,8 +53,7 @@ CREATE TABLE Talon (
     is_paid BOOLEAN DEFAULT FALSE NOT NULL,
     total_amount DECIMAL(10,2) DEFAULT 0.00,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- 5. Tabla DoctorAppointment
@@ -76,21 +67,14 @@ CREATE TABLE DoctorAppointment (
     reason TEXT,
     status ENUM('scheduled', 'waiting', 'completed', 'cancelled') DEFAULT 'scheduled',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (talon_id) REFERENCES Talon(_id),
-    FOREIGN KEY (patient_id) REFERENCES Patient(_id),
-    FOREIGN KEY (receptionist_id) REFERENCES LabStaff(_id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- 6. Tabla intermedia DoctorAppointment_MedicalStudy (muchos a muchos)
 CREATE TABLE DoctorAppointment_MedicalStudy (
     doctor_appointment_id VARCHAR(24) NOT NULL,
     medical_study_id VARCHAR(24) NOT NULL,
-    PRIMARY KEY (doctor_appointment_id, medical_study_id),
-    FOREIGN KEY (doctor_appointment_id) REFERENCES DoctorAppointment(_id)
-      ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (medical_study_id) REFERENCES MedicalStudy(_id)
-      ON DELETE CASCADE ON UPDATE CASCADE
+    PRIMARY KEY (doctor_appointment_id, medical_study_id)
 );
 
 -- 7. Tabla Orden
@@ -98,17 +82,14 @@ CREATE TABLE Orden (
     _id VARCHAR(24) PRIMARY KEY,
     doctor_appointment_id VARCHAR(24) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (doctor_appointment_id) REFERENCES DoctorAppointment(_id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- 8. Tabla intermedia Orden_MedicalStudy (muchos a muchos)
 CREATE TABLE Orden_MedicalStudy (
     orden_id VARCHAR(24) NOT NULL,
     medical_study_id VARCHAR(24) NOT NULL,
-    PRIMARY KEY (orden_id, medical_study_id),
-    FOREIGN KEY (orden_id) REFERENCES Orden(_id),
-    FOREIGN KEY (medical_study_id) REFERENCES MedicalStudy(_id)
+    PRIMARY KEY (orden_id, medical_study_id)
 );
 
 -- 9. Tabla Result
@@ -123,16 +104,8 @@ CREATE TABLE Result (
     description TEXT,
     extraction_date DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (orden_id) REFERENCES Orden(_id),
-    FOREIGN KEY (medical_study_id) REFERENCES MedicalStudy(_id),
-    FOREIGN KEY (biochemist_id) REFERENCES LabStaff(_id),
-    FOREIGN KEY (labtechnician_id) REFERENCES LabStaff(_id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-
-
-ALTER TABLE Result
-ADD UNIQUE KEY uk_orden_study (orden_id, medical_study_id);
 
 -- 10. Tabla PaymentMethod
 CREATE TABLE PaymentMethod (
@@ -151,7 +124,5 @@ CREATE TABLE Payment (
     talon_id VARCHAR(24),
     payment_method_id VARCHAR(24) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (talon_id) REFERENCES Talon(_id),
-    FOREIGN KEY (payment_method_id) REFERENCES PaymentMethod(_id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
