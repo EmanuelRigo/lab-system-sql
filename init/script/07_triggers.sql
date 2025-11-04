@@ -117,3 +117,37 @@ END$$
 
 -- Volver al delimitador por defecto (;)
 DELIMITER ;
+
+-- ==========================================================
+-- 4. VERIFICA QUE COINCIA EL VALOR DEL PAYMENT CON EL DE TALON
+-- ==========================================================
+
+DELIMITER $$
+
+CREATE TRIGGER validar_monto_pago
+BEFORE INSERT ON Payment
+FOR EACH ROW
+BEGIN
+  DECLARE monto_talon DECIMAL(10,2);
+
+  SELECT monto INTO monto_talon
+  FROM Talon
+  WHERE _id = NEW.talon_id;
+
+  IF monto_talon == 0 THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'El monto del talon no puede ser cero';
+  END IF;
+
+  IF monto_talon IS NULL THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'El talon_id no existe en la tabla Talon';
+  END IF;
+
+  IF NEW.amount != monto_talon THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = 'El monto del pago no coincide con el monto del talon';
+  END IF;
+END$$
+
+DELIMITER ;

@@ -1,10 +1,3 @@
--- ==========================================================
--- ✅ CREACIÓN DE BASE DE DATOS
--- ==========================================================
-CREATE DATABASE IF NOT EXISTS lab_db_sql
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_general_ci;
-
 USE lab_db_sql;
 
 -- ==========================================================
