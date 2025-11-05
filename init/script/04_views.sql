@@ -87,3 +87,160 @@ LEFT JOIN MedicalStudy ms ON dams.medical_study_id = ms._id -- Obtiene el nombre
 ORDER BY p.lastname, da.date DESC;
 
 
+-- ==========================================================
+-- 04. VISTAS (Views)
+-- ==========================================================
+DROP VIEW IF EXISTS vw_patient_results_summary;
+
+CREATE VIEW vw_patient_results_summary AS
+SELECT
+    p._id AS patient_id,
+    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    ms.name AS medical_study_name,
+    r.extraction_date,
+    r.result,
+    r.status
+FROM Patient p
+JOIN DoctorAppointment da ON da.patient_id = p._id
+JOIN Orden o ON o.doctor_appointment_id = da._id
+JOIN Result r ON r.orden_id = o._id
+JOIN MedicalStudy ms ON ms._id = r.medical_study_id;
+
+
+-- --==========================================================
+-- -- 05. VISTAS (Views)
+
+DROP VIEW IF EXISTS vw_patient_appointments_summary;
+
+CREATE VIEW vw_patient_appointments_summary AS
+SELECT
+    p._id AS patient_id,
+    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    da._id AS appointment_id,
+    da.date AS appointment_date,
+    da.reason,
+    da.status AS appointment_status,
+    da.is_paid,
+    ms.name AS medical_study_name,
+    ms.price AS study_price,
+    t._id AS talon_id,
+    t.total_amount
+FROM Patient p
+JOIN DoctorAppointment da ON da.patient_id = p._id
+LEFT JOIN Talon t ON da.talon_id = t._id
+LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id
+LEFT JOIN MedicalStudy ms ON ms._id = dams.medical_study_id
+ORDER BY da.date DESC;
+
+
+-- ==========================================================
+-- 06. VISTAS (Views)
+
+DROP VIEW IF EXISTS vw_doctorappointments_by_day;
+CREATE VIEW vw_doctorappointments_by_day AS
+SELECT
+    da._id AS appointment_id,
+    da.date AS appointment_date,
+    da.reason,
+    da.status AS appointment_status,
+    da.is_paid,
+    p._id AS patient_id,
+    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    p.dni,
+    p.phone,
+    ls._id AS receptionist_id,
+    CONCAT(ls.firstname, ' ', ls.lastname) AS receptionist_name,
+    ms.name AS medical_study_name,
+    ms.price AS study_price,
+    t._id AS talon_id,
+    t.total_amount
+FROM DoctorAppointment da
+JOIN Patient p ON da.patient_id = p._id
+LEFT JOIN LabStaff ls ON da.receptionist_id = ls._id
+LEFT JOIN Talon t ON da.talon_id = t._id
+LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id
+LEFT JOIN MedicalStudy ms ON ms._id = dams.medical_study_id;
+
+-- ==========================================================
+-- 07. VISTAS (Views)
+
+DROP VIEW IF EXISTS vw_doctorappointments_by_medicalstudy;
+CREATE VIEW vw_doctorappointments_by_medicalstudy AS
+SELECT
+    da._id AS appointment_id,
+    da.date AS appointment_date,
+    da.reason,
+    da.status AS appointment_status,
+    da.is_paid,
+    p._id AS patient_id,
+    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    p.dni,
+    p.phone,
+    ms._id AS medical_study_id,
+    ms.name AS medical_study_name,
+    ms.price AS study_price,
+    ls._id AS receptionist_id,
+    CONCAT(ls.firstname, ' ', ls.lastname) AS receptionist_name,
+    t._id AS talon_id,
+    t.total_amount
+FROM DoctorAppointment da
+JOIN Patient p ON da.patient_id = p._id
+LEFT JOIN LabStaff ls ON da.receptionist_id = ls._id
+LEFT JOIN Talon t ON da.talon_id = t._id
+LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id
+LEFT JOIN MedicalStudy ms ON ms._id = dams.medical_study_id;
+
+-- ==========================================================
+-- 08. VISTAS (Views)
+
+DROP VIEW IF EXISTS vw_pending_doctorappointments;
+
+CREATE VIEW vw_pending_doctorappointments AS
+SELECT
+    da._id AS appointment_id,
+    da.date AS appointment_date,
+    da.status AS appointment_status,
+    da.reason,
+    da.is_paid,
+    p._id AS patient_id,
+    p.dni,
+    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    p.phone,
+    ls._id AS receptionist_id,
+    CONCAT(ls.firstname, ' ', ls.lastname) AS receptionist_name,
+    ms._id AS medical_study_id,
+    ms.name AS medical_study_name,
+    t._id AS talon_id,
+    t.total_amount
+FROM DoctorAppointment da
+JOIN Patient p ON da.patient_id = p._id
+LEFT JOIN LabStaff ls ON da.receptionist_id = ls._id
+LEFT JOIN Talon t ON da.talon_id = t._id
+LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id
+LEFT JOIN MedicalStudy ms ON ms._id = dams.medical_study_id
+WHERE da.status <> 'completed';
+
+-- ==========================================================
+-- 09. VISTAS (Views)
+
+DROP VIEW IF EXISTS vw_medical_study_monthly_income;
+
+CREATE VIEW vw_medical_study_monthly_income AS
+SELECT
+  ms._id AS medical_study_id,
+  ms.name AS medical_study_name,
+  YEAR(da.`date`) AS year,
+  MONTH(da.`date`) AS month,
+  SUM(ms.price) AS total_income
+FROM DoctorAppointment da
+JOIN DoctorAppointment_MedicalStudy dam 
+  ON da._id = dam.doctor_appointment_id
+JOIN MedicalStudy ms 
+  ON ms._id = dam.medical_study_id
+WHERE da.status = 'completed'
+GROUP BY
+  ms._id,
+  ms.name,
+  YEAR(da.`date`),
+  MONTH(da.`date`);
+

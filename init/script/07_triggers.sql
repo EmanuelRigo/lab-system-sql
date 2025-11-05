@@ -130,11 +130,12 @@ FOR EACH ROW
 BEGIN
   DECLARE monto_talon DECIMAL(10,2);
 
-  SELECT monto INTO monto_talon
+  -- La columna correcta en la tabla Talon es `total_amount` (se usa en otros scripts).
+  SELECT total_amount INTO monto_talon
   FROM Talon
   WHERE _id = NEW.talon_id;
 
-  IF monto_talon == 0 THEN
+  IF monto_talon = 0 THEN
     SIGNAL SQLSTATE '45000'
     SET MESSAGE_TEXT = 'El monto del talon no puede ser cero';
   END IF;
