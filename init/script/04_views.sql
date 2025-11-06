@@ -237,10 +237,33 @@ JOIN DoctorAppointment_MedicalStudy dam
   ON da._id = dam.doctor_appointment_id
 JOIN MedicalStudy ms 
   ON ms._id = dam.medical_study_id
-WHERE da.status = 'completed'
 GROUP BY
   ms._id,
   ms.name,
   YEAR(da.`date`),
   MONTH(da.`date`);
+
+--
+-- ==========================================================
+-- 10. VISTAS (Views)
+
+DROP VIEW IF EXISTS vw_results_by_status;
+
+CREATE VIEW vw_results_by_status AS
+SELECT
+  r._id AS result_id,
+  r.status,
+  r.result,
+  r.description,
+  r.extraction_date,
+  r.created_at,
+  r.updated_at,
+  ms._id AS medical_study_id,
+  ms.name AS medical_study_name,
+  CONCAT(lt.firstname, ' ', lt.lastname) AS labtechnician_name,
+  CONCAT(bc.firstname, ' ', bc.lastname) AS biochemist_name
+FROM Result r
+JOIN MedicalStudy ms ON r.medical_study_id = ms._id
+LEFT JOIN LabStaff lt ON r.labtechnician_id = lt._id
+LEFT JOIN LabStaff bc ON r.biochemist_id = bc._id;
 
