@@ -1,7 +1,6 @@
-USE lab_db_sql;
-
--- 1. Asegúrate de que el delimitador por defecto (;) esté activo.
--- Si has ejecutado procedimientos o triggers antes, deberías tener: DELIMITER ;
+-- ==========================================================
+-- 📊 VISTAS (Views) - PostgreSQL
+-- ==========================================================
 
 DROP VIEW IF EXISTS vw_patient_results;
 
@@ -33,22 +32,17 @@ SELECT
     r.description AS result_description,
     r.extraction_date,
     
-    -- Personal involucrado (opcional)
+    -- Personal involucrado
     r.labtechnician_id,
     r.biochemist_id
-    
-    
     
 FROM Patient p
 JOIN DoctorAppointment da ON da.patient_id = p._id
 JOIN Orden o ON o.doctor_appointment_id = da._id
 JOIN Result r ON r.orden_id = o._id
 JOIN MedicalStudy ms ON ms._id = r.medical_study_id
-ORDER BY p.lastname, da.date DESC, ms.name; -- El ORDER BY dentro de una VIEW es ignorado por algunas versiones de MySQL, pero es válido.
+ORDER BY p.lastname, da.date DESC, ms.name;
 
-
-
-USE lab_db_sql;
 
 DROP VIEW IF EXISTS vw_patient_appointments;
 
@@ -79,23 +73,20 @@ SELECT
     ls.lastname AS receptionist_lastname
     
 FROM Patient p
-JOIN DoctorAppointment da ON da.patient_id = p._id -- Une Paciente con Cita
-JOIN LabStaff ls ON da.receptionist_id = ls._id -- Une con Recepcionista
-LEFT JOIN Talon t ON da.talon_id = t._id -- Une con Talón (puede ser NULL si no está asignado)
-LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id -- Une con Estudios
-LEFT JOIN MedicalStudy ms ON dams.medical_study_id = ms._id -- Obtiene el nombre del Estudio
+JOIN DoctorAppointment da ON da.patient_id = p._id
+JOIN LabStaff ls ON da.receptionist_id = ls._id
+LEFT JOIN Talon t ON da.talon_id = t._id
+LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id
+LEFT JOIN MedicalStudy ms ON dams.medical_study_id = ms._id
 ORDER BY p.lastname, da.date DESC;
 
 
--- ==========================================================
--- 04. VISTAS (Views)
--- ==========================================================
 DROP VIEW IF EXISTS vw_patient_results_summary;
 
 CREATE VIEW vw_patient_results_summary AS
 SELECT
     p._id AS patient_id,
-    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    p.firstname || ' ' || p.lastname AS patient_name,
     ms.name AS medical_study_name,
     r.extraction_date,
     r.result,
@@ -107,15 +98,12 @@ JOIN Result r ON r.orden_id = o._id
 JOIN MedicalStudy ms ON ms._id = r.medical_study_id;
 
 
--- --==========================================================
--- -- 05. VISTAS (Views)
-
 DROP VIEW IF EXISTS vw_patient_appointments_summary;
 
 CREATE VIEW vw_patient_appointments_summary AS
 SELECT
     p._id AS patient_id,
-    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    p.firstname || ' ' || p.lastname AS patient_name,
     da._id AS appointment_id,
     da.date AS appointment_date,
     da.reason,
@@ -133,10 +121,8 @@ LEFT JOIN MedicalStudy ms ON ms._id = dams.medical_study_id
 ORDER BY da.date DESC;
 
 
--- ==========================================================
--- 06. VISTAS (Views)
-
 DROP VIEW IF EXISTS vw_doctorappointments_by_day;
+
 CREATE VIEW vw_doctorappointments_by_day AS
 SELECT
     da._id AS appointment_id,
@@ -145,11 +131,11 @@ SELECT
     da.status AS appointment_status,
     da.is_paid,
     p._id AS patient_id,
-    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    p.firstname || ' ' || p.lastname AS patient_name,
     p.dni,
     p.phone,
     ls._id AS receptionist_id,
-    CONCAT(ls.firstname, ' ', ls.lastname) AS receptionist_name,
+    ls.firstname || ' ' || ls.lastname AS receptionist_name,
     ms.name AS medical_study_name,
     ms.price AS study_price,
     t._id AS talon_id,
@@ -161,10 +147,9 @@ LEFT JOIN Talon t ON da.talon_id = t._id
 LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id
 LEFT JOIN MedicalStudy ms ON ms._id = dams.medical_study_id;
 
--- ==========================================================
--- 07. VISTAS (Views)
 
 DROP VIEW IF EXISTS vw_doctorappointments_by_medicalstudy;
+
 CREATE VIEW vw_doctorappointments_by_medicalstudy AS
 SELECT
     da._id AS appointment_id,
@@ -173,14 +158,14 @@ SELECT
     da.status AS appointment_status,
     da.is_paid,
     p._id AS patient_id,
-    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    p.firstname || ' ' || p.lastname AS patient_name,
     p.dni,
     p.phone,
     ms._id AS medical_study_id,
     ms.name AS medical_study_name,
     ms.price AS study_price,
     ls._id AS receptionist_id,
-    CONCAT(ls.firstname, ' ', ls.lastname) AS receptionist_name,
+    ls.firstname || ' ' || ls.lastname AS receptionist_name,
     t._id AS talon_id,
     t.total_amount
 FROM DoctorAppointment da
@@ -190,8 +175,6 @@ LEFT JOIN Talon t ON da.talon_id = t._id
 LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointment_id
 LEFT JOIN MedicalStudy ms ON ms._id = dams.medical_study_id;
 
--- ==========================================================
--- 08. VISTAS (Views)
 
 DROP VIEW IF EXISTS vw_pending_doctorappointments;
 
@@ -204,10 +187,10 @@ SELECT
     da.is_paid,
     p._id AS patient_id,
     p.dni,
-    CONCAT(p.firstname, ' ', p.lastname) AS patient_name,
+    p.firstname || ' ' || p.lastname AS patient_name,
     p.phone,
     ls._id AS receptionist_id,
-    CONCAT(ls.firstname, ' ', ls.lastname) AS receptionist_name,
+    ls.firstname || ' ' || ls.lastname AS receptionist_name,
     ms._id AS medical_study_id,
     ms.name AS medical_study_name,
     t._id AS talon_id,
@@ -220,8 +203,6 @@ LEFT JOIN DoctorAppointment_MedicalStudy dams ON da._id = dams.doctor_appointmen
 LEFT JOIN MedicalStudy ms ON ms._id = dams.medical_study_id
 WHERE da.status <> 'completed';
 
--- ==========================================================
--- 09. VISTAS (Views)
 
 DROP VIEW IF EXISTS vw_medical_study_monthly_income;
 
@@ -229,8 +210,8 @@ CREATE VIEW vw_medical_study_monthly_income AS
 SELECT
   ms._id AS medical_study_id,
   ms.name AS medical_study_name,
-  YEAR(da.`date`) AS year,
-  MONTH(da.`date`) AS month,
+  EXTRACT(YEAR FROM da.date)::INT AS year,
+  EXTRACT(MONTH FROM da.date)::INT AS month,
   SUM(ms.price) AS total_income
 FROM DoctorAppointment da
 JOIN DoctorAppointment_MedicalStudy dam 
@@ -240,12 +221,9 @@ JOIN MedicalStudy ms
 GROUP BY
   ms._id,
   ms.name,
-  YEAR(da.`date`),
-  MONTH(da.`date`);
+  EXTRACT(YEAR FROM da.date),
+  EXTRACT(MONTH FROM da.date);
 
---
--- ==========================================================
--- 10. VISTAS (Views)
 
 DROP VIEW IF EXISTS vw_results_by_status;
 
@@ -260,8 +238,8 @@ SELECT
   r.updated_at,
   ms._id AS medical_study_id,
   ms.name AS medical_study_name,
-  CONCAT(lt.firstname, ' ', lt.lastname) AS labtechnician_name,
-  CONCAT(bc.firstname, ' ', bc.lastname) AS biochemist_name
+  lt.firstname || ' ' || lt.lastname AS labtechnician_name,
+  bc.firstname || ' ' || bc.lastname AS biochemist_name
 FROM Result r
 JOIN MedicalStudy ms ON r.medical_study_id = ms._id
 LEFT JOIN LabStaff lt ON r.labtechnician_id = lt._id

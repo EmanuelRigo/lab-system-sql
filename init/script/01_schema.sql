@@ -1,10 +1,17 @@
-USE lab_db_sql;
-
 -- ==========================================================
--- ✅ TABLAS PRINCIPALES
+-- ✅ TABLAS PRINCIPALES (PostgreSQL)
 -- ==========================================================
 
+-- ==========================================================
+-- 📋 CREATE ENUM TYPES
+-- ==========================================================
+CREATE TYPE staff_role_enum AS ENUM ('admin', 'receptionist', 'biochemist', 'labTechnician');
+CREATE TYPE appointment_status_enum AS ENUM ('scheduled', 'waiting', 'completed', 'cancelled');
+CREATE TYPE result_status_enum AS ENUM ('pending', 'in_progress', 'completed', 'failed');
+
+-- ==========================================================
 -- 1. Tabla LabStaff
+-- ==========================================================
 CREATE TABLE LabStaff (
     _id VARCHAR(24) PRIMARY KEY,
     firstname VARCHAR(100) NOT NULL,
@@ -12,15 +19,17 @@ CREATE TABLE LabStaff (
     lastname VARCHAR(100) NOT NULL,
     username VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'receptionist', 'biochemist', 'labTechnician') NOT NULL,
+    role staff_role_enum NOT NULL,
     email VARCHAR(150) UNIQUE,
     phone VARCHAR(20),
     is_online BOOLEAN DEFAULT FALSE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================================================
 -- 2. Tabla Patient
+-- ==========================================================
 CREATE TABLE Patient (
     _id VARCHAR(24) PRIMARY KEY,
     firstname VARCHAR(100) NOT NULL,
@@ -31,98 +40,116 @@ CREATE TABLE Patient (
     email VARCHAR(150),
     phone VARCHAR(20),
     address VARCHAR(255) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================================================
 -- 3. Tabla MedicalStudy
+-- ==========================================================
 CREATE TABLE MedicalStudy (
     _id VARCHAR(24) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
     description TEXT,
     duration INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================================================
 -- 4. Tabla Talon
+-- ==========================================================
 CREATE TABLE Talon (
     _id VARCHAR(24) PRIMARY KEY,
     receptionist_id VARCHAR(24) NOT NULL,
     is_paid BOOLEAN DEFAULT FALSE NOT NULL,
     total_amount DECIMAL(10,2) DEFAULT 0.00,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================================================
 -- 5. Tabla DoctorAppointment
+-- ==========================================================
 CREATE TABLE DoctorAppointment (
     _id VARCHAR(24) PRIMARY KEY,
     is_paid BOOLEAN DEFAULT FALSE NOT NULL,
     talon_id VARCHAR(24),
     patient_id VARCHAR(24) NOT NULL,
     receptionist_id VARCHAR(24) NOT NULL,
-    date DATETIME NOT NULL,
+    date TIMESTAMP NOT NULL,
     reason TEXT,
-    status ENUM('scheduled', 'waiting', 'completed', 'cancelled') DEFAULT 'scheduled',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    status appointment_status_enum DEFAULT 'scheduled',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================================================
 -- 6. Tabla intermedia DoctorAppointment_MedicalStudy (muchos a muchos)
+-- ==========================================================
 CREATE TABLE DoctorAppointment_MedicalStudy (
     doctor_appointment_id VARCHAR(24) NOT NULL,
     medical_study_id VARCHAR(24) NOT NULL,
     PRIMARY KEY (doctor_appointment_id, medical_study_id)
 );
 
+-- ==========================================================
 -- 7. Tabla Orden
+-- ==========================================================
 CREATE TABLE Orden (
     _id VARCHAR(24) PRIMARY KEY,
     doctor_appointment_id VARCHAR(24) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================================================
 -- 8. Tabla intermedia Orden_MedicalStudy (muchos a muchos)
+-- ==========================================================
 CREATE TABLE Orden_MedicalStudy (
     orden_id VARCHAR(24) NOT NULL,
     medical_study_id VARCHAR(24) NOT NULL,
     PRIMARY KEY (orden_id, medical_study_id)
 );
 
+-- ==========================================================
 -- 9. Tabla Result
+-- ==========================================================
 CREATE TABLE Result (
     _id VARCHAR(24) PRIMARY KEY,
     orden_id VARCHAR(24) NOT NULL,
     medical_study_id VARCHAR(24) NOT NULL,
     labtechnician_id VARCHAR(24),
     biochemist_id VARCHAR(24),
-    status ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending',
+    status result_status_enum DEFAULT 'pending',
     result VARCHAR(255),
     description TEXT,
-    extraction_date DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    extraction_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================================================
 -- 10. Tabla PaymentMethod
+-- ==========================================================
 CREATE TABLE PaymentMethod (
     _id VARCHAR(24) PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ==========================================================
 -- 11. Tabla Payment
+-- ==========================================================
 CREATE TABLE Payment (
     _id VARCHAR(24) PRIMARY KEY,
     amount DECIMAL(10,2),
     talon_id VARCHAR(24),
     payment_method_id VARCHAR(24) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

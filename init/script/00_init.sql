@@ -2,7 +2,7 @@
 -- ✅ FILE: 00_init.sql
 -- ==========================================================
 -- 📄 Description:
--- Initializes the database environment for the LAB SYSTEM.
+-- Initializes the database environment for the LAB SYSTEM (PostgreSQL).
 -- Creates the main database and sets base configurations.
 -- ==========================================================
 
@@ -13,22 +13,17 @@
 -- Optional: remove old database (use only in dev environments)
 DROP DATABASE IF EXISTS lab_db_sql;
 
--- Create new database with proper encoding
+-- Create new database with UTF-8 encoding (PostgreSQL default)
 CREATE DATABASE lab_db_sql
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_general_ci;
-
--- Select database
-USE lab_db_sql;
+  ENCODING 'UTF8'
+  LC_COLLATE 'en_US.UTF-8'
+  LC_CTYPE 'en_US.UTF-8';
 
 -- ==========================================================
 -- ⚙️ Optional Configurations
 -- ==========================================================
--- Disable foreign key checks during initial setup
-SET FOREIGN_KEY_CHECKS = 0;
-
--- Set SQL mode for consistent behavior
-SET sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+-- PostgreSQL doesn't need explicit foreign key checks disabling
+-- Constraints are enforced by default
 
 -- ==========================================================
 -- ✅ End of file

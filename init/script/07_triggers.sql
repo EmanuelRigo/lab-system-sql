@@ -1,154 +1,228 @@
-USE lab_db_sql;
-
-DELIMITER $$
-
 -- ==========================================================
--- 1. TRIGGERS DE CÁLCULO (Recalculan el total del talón)
+-- 🎯 TRIGGERS - PostgreSQL
 -- ==========================================================
 
-/* 1.1. TRIGGER: Cuando se actualiza una cita (cambio o asignación de talón) */
-DROP TRIGGER IF EXISTS trg_update_talon_total_amount$$
+-- ==========================================================
+-- 1. FUNCIONES TRIGGER: Recalcular total_amount del talón
+-- ==========================================================
+
+-- Función para cuando se actualiza DoctorAppointment
+CREATE OR REPLACE FUNCTION trg_update_talon_total_amount_func()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.talon_id IS NOT NULL AND (OLD.talon_id IS NULL OR OLD.talon_id <> NEW.talon_id) THEN
+        PERFORM recalc_talon_total(NEW.talon_id);
+    END IF;
+
+    IF OLD.talon_id IS NOT NULL AND OLD.talon_id <> NEW.talon_id THEN
+        PERFORM recalc_talon_total(OLD.talon_id);
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_talon_total_amount ON DoctorAppointment;
 CREATE TRIGGER trg_update_talon_total_amount
 AFTER UPDATE ON DoctorAppointment
 FOR EACH ROW
+EXECUTE FUNCTION trg_update_talon_total_amount_func();
+
+
+-- Función para cuando se agrega un estudio a una cita
+CREATE OR REPLACE FUNCTION trg_dam_after_insert_func()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_talon_id VARCHAR(24);
 BEGIN
-  IF NEW.talon_id IS NOT NULL AND (OLD.talon_id IS NULL OR OLD.talon_id <> NEW.talon_id) THEN
-    CALL recalc_talon_total(NEW.talon_id);
-  END IF;
+    SELECT talon_id INTO v_talon_id
+    FROM DoctorAppointment
+    WHERE _id = NEW.doctor_appointment_id
+    LIMIT 1;
 
-  IF OLD.talon_id IS NOT NULL AND OLD.talon_id <> NEW.talon_id THEN
-    CALL recalc_talon_total(OLD.talon_id);
-  END IF;
-END$$
+    IF v_talon_id IS NOT NULL THEN
+        PERFORM recalc_talon_total(v_talon_id);
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-
-/* 1.2. TRIGGER: Cuando se AGREGA un estudio a una cita */
-DROP TRIGGER IF EXISTS trg_dam_after_insert$$
+DROP TRIGGER IF EXISTS trg_dam_after_insert ON DoctorAppointment_MedicalStudy;
 CREATE TRIGGER trg_dam_after_insert
 AFTER INSERT ON DoctorAppointment_MedicalStudy
 FOR EACH ROW
+EXECUTE FUNCTION trg_dam_after_insert_func();
+
+
+-- Función para cuando se elimina un estudio de una cita
+CREATE OR REPLACE FUNCTION trg_dam_after_delete_func()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_talon_id VARCHAR(24);
 BEGIN
-  DECLARE v_talon_id VARCHAR(24);
+    SELECT talon_id INTO v_talon_id
+    FROM DoctorAppointment
+    WHERE _id = OLD.doctor_appointment_id
+    LIMIT 1;
 
-  SELECT talon_id INTO v_talon_id
-  FROM DoctorAppointment
-  WHERE _id = NEW.doctor_appointment_id
-  LIMIT 1;
+    IF v_talon_id IS NOT NULL THEN
+        PERFORM recalc_talon_total(v_talon_id);
+    END IF;
+    
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
 
-  IF v_talon_id IS NOT NULL THEN
-    CALL recalc_talon_total(v_talon_id);
-  END IF;
-END$$
-
-
-/* 1.3. TRIGGER: Cuando se ELIMINA un estudio de una cita */
-DROP TRIGGER IF EXISTS trg_dam_after_delete$$
+DROP TRIGGER IF EXISTS trg_dam_after_delete ON DoctorAppointment_MedicalStudy;
 CREATE TRIGGER trg_dam_after_delete
 AFTER DELETE ON DoctorAppointment_MedicalStudy
 FOR EACH ROW
-BEGIN
-  DECLARE v_talon_id VARCHAR(24);
-
-  SELECT talon_id INTO v_talon_id
-  FROM DoctorAppointment
-  WHERE _id = OLD.doctor_appointment_id
-  LIMIT 1;
-
-  IF v_talon_id IS NOT NULL THEN
-    CALL recalc_talon_total(v_talon_id);
-  END IF;
-END$$
+EXECUTE FUNCTION trg_dam_after_delete_func();
 
 -- ==========================================================
--- 2. TRIGGERS DE PAGO (Disparan la lógica de pago y orden)
+-- 2. FUNCIONES TRIGGER: Validación de pago
 -- ==========================================================
 
-/* 2.1. TRIGGER BEFORE INSERT (Garantiza que el monto es correcto) */
-DROP TRIGGER IF EXISTS trg_payment_before_insert$$
-
-CREATE TRIGGER trg_payment_before_insert
-BEFORE INSERT ON Payment
-FOR EACH ROW
+-- Función BEFORE INSERT para validar y asignar monto del pago
+CREATE OR REPLACE FUNCTION trg_payment_before_insert_func()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_total_amount DECIMAL(10,2);
 BEGIN
-    DECLARE v_total_amount DECIMAL(10,2);
-    
     IF NEW.talon_id IS NULL THEN
-        SIGNAL SQLSTATE '45000' 
-        SET MESSAGE_TEXT = 'El pago debe estar asociado a un talon (talon_id no puede ser NULL).';
+        RAISE EXCEPTION 'El pago debe estar asociado a un talon (talon_id no puede ser NULL).';
     END IF;
 
     -- Obtener el total_amount del Talon asociado
-    SELECT total_amount
-    INTO v_total_amount
+    SELECT total_amount INTO v_total_amount
     FROM Talon
     WHERE _id = NEW.talon_id
     LIMIT 1;
 
+    IF v_total_amount IS NULL THEN
+        RAISE EXCEPTION 'El talon_id no existe en la tabla Talon';
+    END IF;
+
+    IF v_total_amount = 0 THEN
+        RAISE EXCEPTION 'El monto del talon no puede ser cero';
+    END IF;
+
+    IF NEW.amount IS NULL OR NEW.amount <> v_total_amount THEN
+        RAISE EXCEPTION 'El monto del pago no coincide con el monto del talon';
+    END IF;
+
     -- Asignar (o forzar) el monto del pago al total del talón.
-    SET NEW.amount = v_total_amount;
+    NEW.amount := v_total_amount;
     
-END$$
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_payment_before_insert ON Payment;
+CREATE TRIGGER trg_payment_before_insert
+BEFORE INSERT ON Payment
+FOR EACH ROW
+EXECUTE FUNCTION trg_payment_before_insert_func();
 
 
-/* 2.2. TRIGGER AFTER INSERT (Dispara el procesamiento de la orden) */
-DROP TRIGGER IF EXISTS trg_payment_after_insert$$
+-- Función AFTER INSERT para disparar el procesamiento de la orden
+CREATE OR REPLACE FUNCTION trg_payment_after_insert_func()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM process_payment_and_generate_order(NEW._id);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_payment_after_insert ON Payment;
 CREATE TRIGGER trg_payment_after_insert
 AFTER INSERT ON Payment
 FOR EACH ROW
+EXECUTE FUNCTION trg_payment_after_insert_func();
+
+-- ==========================================================
+-- 3. FUNCIÓN TRIGGER: Resultados (cambio de estado de cita)
+-- ==========================================================
+
+CREATE OR REPLACE FUNCTION trg_result_after_insert_func()
+RETURNS TRIGGER AS $$
 BEGIN
-    CALL process_payment_and_generate_order(NEW._id);
-END$$
+    PERFORM check_and_complete_appointment(NEW.orden_id);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- ==========================================================
--- 3. TRIGGER DE RESULTADOS (Dispara el cambio de estado de la cita)
--- ==========================================================
-
-DROP TRIGGER IF EXISTS trg_result_after_insert$$
-
+DROP TRIGGER IF EXISTS trg_result_after_insert ON Result;
 CREATE TRIGGER trg_result_after_insert
 AFTER INSERT ON Result
 FOR EACH ROW
+EXECUTE FUNCTION trg_result_after_insert_func();
+
+-- ==========================================================
+-- 4. FUNCIONES TRIGGER: Actualización automática de updated_at
+-- ==========================================================
+
+-- Función genérica para actualizar updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
 BEGIN
-    -- Llama al procedimiento que verifica si todos los estudios de la cita
-    -- asociada a esta orden están completos.
-    CALL check_and_complete_appointment(NEW.orden_id);
-END$$
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- Volver al delimitador por defecto (;)
-DELIMITER ;
-
--- ==========================================================
--- 4. VERIFICA QUE COINCIA EL VALOR DEL PAYMENT CON EL DE TALON
--- ==========================================================
-
-DELIMITER $$
-
-CREATE TRIGGER validar_monto_pago
-BEFORE INSERT ON Payment
+-- Aplicar a todas las tablas con updated_at
+DROP TRIGGER IF EXISTS trg_update_labstaff_updated_at ON LabStaff;
+CREATE TRIGGER trg_update_labstaff_updated_at
+BEFORE UPDATE ON LabStaff
 FOR EACH ROW
-BEGIN
-  DECLARE monto_talon DECIMAL(10,2);
+EXECUTE FUNCTION update_updated_at_column();
 
-  -- La columna correcta en la tabla Talon es `total_amount` (se usa en otros scripts).
-  SELECT total_amount INTO monto_talon
-  FROM Talon
-  WHERE _id = NEW.talon_id;
+DROP TRIGGER IF EXISTS trg_update_patient_updated_at ON Patient;
+CREATE TRIGGER trg_update_patient_updated_at
+BEFORE UPDATE ON Patient
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
 
-  IF monto_talon = 0 THEN
-    SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'El monto del talon no puede ser cero';
-  END IF;
+DROP TRIGGER IF EXISTS trg_update_medicalstudy_updated_at ON MedicalStudy;
+CREATE TRIGGER trg_update_medicalstudy_updated_at
+BEFORE UPDATE ON MedicalStudy
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
 
-  IF monto_talon IS NULL THEN
-    SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'El talon_id no existe en la tabla Talon';
-  END IF;
+DROP TRIGGER IF EXISTS trg_update_talon_updated_at ON Talon;
+CREATE TRIGGER trg_update_talon_updated_at
+BEFORE UPDATE ON Talon
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
 
-  IF NEW.amount != monto_talon THEN
-    SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'El monto del pago no coincide con el monto del talon';
-  END IF;
-END$$
+DROP TRIGGER IF EXISTS trg_update_doctorappointment_updated_at ON DoctorAppointment;
+CREATE TRIGGER trg_update_doctorappointment_updated_at
+BEFORE UPDATE ON DoctorAppointment
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
 
-DELIMITER ;
+DROP TRIGGER IF EXISTS trg_update_orden_updated_at ON Orden;
+CREATE TRIGGER trg_update_orden_updated_at
+BEFORE UPDATE ON Orden
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_update_result_updated_at ON Result;
+CREATE TRIGGER trg_update_result_updated_at
+BEFORE UPDATE ON Result
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_update_paymentmethod_updated_at ON PaymentMethod;
+CREATE TRIGGER trg_update_paymentmethod_updated_at
+BEFORE UPDATE ON PaymentMethod
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_update_payment_updated_at ON Payment;
+CREATE TRIGGER trg_update_payment_updated_at
+BEFORE UPDATE ON Payment
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();

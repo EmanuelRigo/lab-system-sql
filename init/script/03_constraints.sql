@@ -1,7 +1,5 @@
-USE lab_db_sql;
-
 -- ==========================================================
--- 🔗 RELACIONES ENTRE TABLAS (FOREIGN KEYS)
+-- 🔗 RELACIONES ENTRE TABLAS (FOREIGN KEYS) - PostgreSQL
 -- ==========================================================
 
 -- Talon → LabStaff
@@ -18,9 +16,9 @@ ADD CONSTRAINT fk_appointment_receptionist FOREIGN KEY (receptionist_id) REFEREN
 -- DoctorAppointment_MedicalStudy
 ALTER TABLE DoctorAppointment_MedicalStudy
 ADD CONSTRAINT fk_doctorstudy_appointment FOREIGN KEY (doctor_appointment_id) REFERENCES DoctorAppointment(_id)
-  ON DELETE CASCADE ON UPDATE CASCADE,
+  ON DELETE CASCADE,
 ADD CONSTRAINT fk_doctorstudy_study FOREIGN KEY (medical_study_id) REFERENCES MedicalStudy(_id)
-  ON DELETE CASCADE ON UPDATE CASCADE;
+  ON DELETE CASCADE;
 
 -- Orden → DoctorAppointment
 ALTER TABLE Orden
@@ -47,4 +45,4 @@ ADD CONSTRAINT fk_payment_method FOREIGN KEY (payment_method_id) REFERENCES Paym
 -- 🧩 CLAVES ÚNICAS ADICIONALES
 -- ==========================================================
 ALTER TABLE Result
-ADD UNIQUE KEY uk_orden_study (orden_id, medical_study_id);
+ADD UNIQUE (orden_id, medical_study_id);

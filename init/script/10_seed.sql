@@ -1,14 +1,12 @@
 -- ==========================================================
--- ✅ FILE: 10_seed.sql
+-- ✅ FILE: 10_seed.sql - PostgreSQL
 -- ==========================================================
 -- 📄 Descripción:
 -- Este script carga datos iniciales (seed) en las tablas de la base de datos
--- utilizando archivos CSV ubicados en la carpeta segura de MySQL:
---     /var/lib/mysql-files/
+-- utilizando archivos CSV ubicados en la carpeta init/data:
+--     /docker-entrypoint-initdb.d/data/ (en el contenedor)
 -- Asegúrate de que los archivos existan en esa ruta dentro del contenedor.
 -- ==========================================================
-
-USE lab_db_sql;
 
 -- ==========================================================
 -- 🧪 MedicalStudy
@@ -16,13 +14,9 @@ USE lab_db_sql;
 -- Carga la lista de estudios médicos ofrecidos por el laboratorio.
 -- Incluye nombre, precio, descripción y duración estimada.
 -- ----------------------------------------------------------
-LOAD DATA INFILE '/var/lib/mysql-files/medical_studies.csv'
-INTO TABLE MedicalStudy
-FIELDS TERMINATED BY ',' 
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES
-(_id, name, price, description, duration);
+COPY MedicalStudy (_id, name, price, description, duration)
+FROM '/docker-entrypoint-initdb.d/data/medical_studies.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
 -- ==========================================================
 -- 💳 PaymentMethod
@@ -30,13 +24,9 @@ IGNORE 1 LINES
 -- Carga los métodos de pago disponibles (efectivo, tarjeta, etc.)
 -- e indica si cada método se encuentra activo o no.
 -- ----------------------------------------------------------
-LOAD DATA INFILE '/var/lib/mysql-files/payment_methods.csv'
-INTO TABLE PaymentMethod
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES
-(_id, name, description, is_active);
+COPY PaymentMethod (_id, name, description, is_active)
+FROM '/docker-entrypoint-initdb.d/data/payment_methods.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
 -- ==========================================================
 -- 🧍‍♂️ Patient
@@ -44,13 +34,9 @@ IGNORE 1 LINES
 -- Carga la información demográfica de los pacientes, incluyendo
 -- datos personales y de contacto.
 -- ----------------------------------------------------------
-LOAD DATA INFILE '/var/lib/mysql-files/patients.csv'
-INTO TABLE Patient
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES
-(_id, firstname, secondname, lastname, birth_date, dni, email, phone, address);
+COPY Patient (_id, firstname, secondname, lastname, birth_date, dni, email, phone, address)
+FROM '/docker-entrypoint-initdb.d/data/patients.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
 -- ==========================================================
 -- 👨‍🔬 LabStaff
@@ -58,29 +44,19 @@ IGNORE 1 LINES
 -- Carga la información del personal de laboratorio, incluyendo
 -- su rol, nombre de usuario y datos de contacto.
 -- ----------------------------------------------------------
-LOAD DATA INFILE '/var/lib/mysql-files/LabStaff.csv'
-INTO TABLE LabStaff
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES
-(_id, firstname, secondname, lastname, username, password, role, email, phone, is_online, created_at, updated_at);
+COPY LabStaff (_id, firstname, secondname, lastname, username, password, role, email, phone, is_online, created_at, updated_at)
+FROM '/docker-entrypoint-initdb.d/data/LabStaff.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
 -- ==========================================================
 -- 📅 DoctorAppointment
 -- ==========================================================
 -- Carga las citas médicas, vinculando pacientes, recepcionistas
--- y opcionalmente los talones. Se maneja talon_id como NULL
--- cuando el valor está vacío.
+-- y opcionalmente los talones. Los campos vacíos se interpretan como NULL.
 -- ----------------------------------------------------------
-LOAD DATA INFILE '/var/lib/mysql-files/DoctorAppointment.csv'
-INTO TABLE DoctorAppointment
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES
-(_id, is_paid, patient_id, receptionist_id, date, reason, status)
-SET talon_id = NULLIF(talon_id, '');
+COPY DoctorAppointment (_id, is_paid, talon_id, patient_id, receptionist_id, date, reason, status)
+FROM '/docker-entrypoint-initdb.d/data/DoctorAppointment.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
 -- ==========================================================
 -- 🎟️ Talon
@@ -88,28 +64,9 @@ SET talon_id = NULLIF(talon_id, '');
 -- Carga los registros de talones (vouchers), los cuales
 -- relacionan al recepcionista con los pagos o pacientes.
 -- ----------------------------------------------------------
-LOAD DATA INFILE '/var/lib/mysql-files/Talon.csv'
-INTO TABLE Talon
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES
-(_id, receptionist_id, is_paid);
-
- -- ==========================================================
- -- 📦 Orden
- -- ==========================================================
- -- Carga las órdenes (relación entre cita y estudio, creadas por personal)
- -- Ajusta campos NULL cuando corresponda.
- -- ----------------------------------------------------------
---  LOAD DATA INFILE '/var/lib/mysql-files/Orden.csv'
---  INTO TABLE Orden
---  FIELDS TERMINATED BY ','
---  ENCLOSED BY '"'
---  LINES TERMINATED BY '\r\n'
---  IGNORE 1 LINES
---  (_id, doctor_appointment_id, medical_study_id, created_by, status, created_at, updated_at, @notes)
---  SET notes = NULLIF(@notes, '');
+COPY Talon (_id, receptionist_id, is_paid, total_amount)
+FROM '/docker-entrypoint-initdb.d/data/Talon.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
 -- ==========================================================
 -- 🔗 DoctorAppointment_MedicalStudy
@@ -117,18 +74,37 @@ IGNORE 1 LINES
 -- Carga la relación muchos a muchos entre las citas médicas
 -- y los estudios solicitados por el médico.
 -- ----------------------------------------------------------
-LOAD DATA INFILE '/var/lib/mysql-files/DoctorAppointment_MedicalStudy.csv'
-INTO TABLE DoctorAppointment_MedicalStudy
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES
-(doctor_appointment_id, medical_study_id);
+COPY DoctorAppointment_MedicalStudy (doctor_appointment_id, medical_study_id)
+FROM '/docker-entrypoint-initdb.d/data/DoctorAppointment_MedicalStudy.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
--- Ajuste opcional para mantener integridad de los datos de ejemplo
-UPDATE DoctorAppointment 
-SET talon_id='f81bf30d39efa8bf45ff7586' 
-WHERE _id='4a6d083eae25ecf58917f24d';
+-- ==========================================================
+-- 📦 Orden
+-- ==========================================================
+-- Carga las órdenes (relación entre cita y estudio)
+-- ----------------------------------------------------------
+-- COPY Orden (_id, doctor_appointment_id)
+-- FROM '/docker-entrypoint-initdb.d/data/Orden.csv'
+-- WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
+
+-- ==========================================================
+-- 🔗 Orden_MedicalStudy
+-- ==========================================================
+-- Carga la relación muchos a muchos entre órdenes y estudios médicos.
+-- ----------------------------------------------------------
+-- COPY Orden_MedicalStudy (orden_id, medical_study_id)
+-- FROM '/docker-entrypoint-initdb.d/data/Orden_MedicalStudy.csv'
+-- WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
+
+-- ==========================================================
+-- 🧾 Result
+-- ==========================================================
+-- Carga los resultados de los estudios, incluyendo el técnico
+-- y bioquímico responsable, estado y descripción del resultado.
+-- ----------------------------------------------------------
+-- COPY Result (_id, orden_id, medical_study_id, labtechnician_id, biochemist_id, status, result, description, extraction_date, created_at, updated_at)
+-- FROM '/docker-entrypoint-initdb.d/data/Result.csv'
+-- WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
 -- ==========================================================
 -- 💰 Payment
@@ -136,29 +112,17 @@ WHERE _id='4a6d083eae25ecf58917f24d';
 -- Carga los registros de pagos, vinculándolos con los talones
 -- y los métodos de pago correspondientes.
 -- ----------------------------------------------------------
-LOAD DATA INFILE '/var/lib/mysql-files/Payment.csv'
-INTO TABLE Payment
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES
-(_id, amount, talon_id, payment_method_id, created_at, updated_at);
+COPY Payment (_id, amount, talon_id, payment_method_id, created_at, updated_at)
+FROM '/docker-entrypoint-initdb.d/data/Payment.csv'
+WITH (FORMAT csv, HEADER true, DELIMITER ',', QUOTE '"', ESCAPE '"', NULL '');
 
 -- ==========================================================
--- 🧾 Result
+-- 📝 Ajustes de integridad
 -- ==========================================================
--- Carga los resultados de los estudios, incluyendo el técnico
--- y bioquímico responsable, estado y descripción del resultado.
--- El campo biochemist_id se establece como NULL si está vacío.
--- ----------------------------------------------------------
--- LOAD DATA INFILE '/var/lib/mysql-files/Result.csv'
--- INTO TABLE Result
--- FIELDS TERMINATED BY ','
--- ENCLOSED BY '"'
--- LINES TERMINATED BY '\r\n'
--- IGNORE 1 LINES
--- (_id, medical_study_id, labtechnician_id, @biochemist_id, status, result, description, extraction_date, created_at, updated_at)
--- SET biochemist_id = NULLIF(@biochemist_id, '');
+-- Ajuste opcional para mantener integridad de los datos de ejemplo (si es necesario)
+-- UPDATE DoctorAppointment 
+-- SET talon_id='f81bf30d39efa8bf45ff7586' 
+-- WHERE _id='4a6d083eae25ecf58917f24d';
 
 -- ==========================================================
 -- ✅ Fin del archivo
